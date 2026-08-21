@@ -1,27 +1,28 @@
 /* =========================================================
-   AINEX RAILWAY - SCRIPT.JS
-   PNR + Station Autocomplete + Railway Services
-   ========================================================= */
+   AINEX RAILWAY - script.js
+   RailKit + station.json
+========================================================= */
+
+"use strict";
 
 const API = "/api/railway";
+
 let stations = [];
 
-/* =========================
-   COMMON HELPERS
-========================= */
+/* =========================================================
+   HELPERS
+========================================================= */
 
-const $ = (id) => document.getElementById(id);
+const $ = id => document.getElementById(id);
 
-function val(id) {
-  return String($(id)?.value || "").trim();
-}
+const text = id =>
+  String($(id)?.value || "").trim();
 
-function clean(v) {
-  return String(v || "").trim().toUpperCase();
-}
+const upper = id =>
+  text(id).toUpperCase();
 
-function esc(v) {
-  return String(v ?? "-")
+function esc(value) {
+  return String(value ?? "-")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -29,50 +30,102 @@ function esc(v) {
     .replace(/'/g, "&#039;");
 }
 
-function showError(box, message) {
-  if (!box) return;
+function loading(id, message = "Data load ho raha hai...") {
+  const el = $(id);
+  if (!el) return;
 
-  box.innerHTML = `
+  el.innerHTML = `
+    <div class="loading-box">
+      🔄 ${esc(message)}
+    </div>
+  `;
+}
+
+function errorBox(id, message) {
+  const el = $(id);
+  if (!el) return;
+
+  el.innerHTML = `
     <div class="error-box">
       ❌ ${esc(message)}
     </div>
   `;
 }
 
-function showLoading(box, text = "Data load ho raha hai...") {
-  if (!box) return;
+function emptyBox(id, message) {
+  const el = $(id);
+  if (!el) return;
 
-  box.innerHTML = `
-    <div class="loading-box">
-      🔄 ${esc(text)}
+  el.innerHTML = `
+    <div class="no-data">
+      ${esc(message)}
     </div>
   `;
 }
 
-async function api(action, params = {}) {
-  const query = new URLSearchParams({
-    action,
-    ...params
+function dateForAPI(value) {
+  if (!value) return "";
+
+  const s = String(value);
+
+  if (/^\d{2}-\d{2}-\d{4}$/.test(s)) {
+    return s;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const [y, m, d] = s.split("-");
+    return `${d}-${m}-${y}`;
+  }
+
+  return s;
+}
+
+/* =========================================================
+   API
+========================================================= */
+
+async function railway(action, params = {}) {
+
+  const query = new URLSearchParams();
+
+  query.set("action", action);
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (
+      value !== undefined &&
+      value !== null &&
+      value !== ""
+    ) {
+      query.set(key, value);
+    }
   });
 
-  const response = await fetch(`${API}?${query.toString()}`, {
-    method: "GET",
-    cache: "no-store"
-  });
+  const response = await fetch(
+    `${API}?${query.toString()}`,
+    {
+      method: "GET",
+      cache: "no-store",
+      headers: {
+        Accept: "application/json"
+      }
+    }
+  );
 
   let data;
 
   try {
     data = await response.json();
   } catch {
-    throw new Error("Server se valid response nahi mila.");
+    throw new Error(
+      "Railway server se valid response nahi mila."
+    );
   }
 
   if (!response.ok || data?.success === false) {
     throw new Error(
       data?.message ||
       data?.error ||
-      "Railway request failed."
+      "Railway API request failed."
     );
   }
 
@@ -84,46 +137,76 @@ async function api(action, params = {}) {
 ========================================================= */
 
 async function loadStations() {
+
   try {
-    const response = await fetch("/station.json", {
-      cache: "no-store"
-    });
+
+    const response =
+      await fetch("/station.json", {
+        cache: "no-store"
+      });
 
     if (!response.ok) {
-      throw new Error("station.json load nahi hua.");
+      throw new Error(
+        "station.json load nahi hua."
+      );
     }
 
-    const data = await response.json();
+    const data =
+      await response.json();
 
-    stations = Array.isArray(data)
-      ? data
-      : Array.isArray(data.stations)
-        ? data.stations
-        : [];
+    const list =
+      Array.isArray(data)
+        ? data
+        : data?.stations;
 
-    /* Duplicate station code remove */
-    const unique = new Map();
+    if (!Array.isArray(list)) {
+      throw new Error(
+        "station.json ka format galat hai."
+      );
+    }
 
-    stations.forEach(s => {
-      const code = clean(s.stnCode);
+    const map = new Map();
 
-      if (code && !unique.has(code)) {
-        unique.set(code, {
+    list.forEach(station => {
+
+      const code =
+        String(
+          station?.stnCode || ""
+        ).trim().toUpperCase();
+
+      if (!code) return;
+
+      if (!map.has(code)) {
+        map.set(code, {
           stnCode: code,
-          stnName: s.stnName || code,
-          stnCity: s.stnCity || s.stnName || code
+          stnName:
+            station?.stnName ||
+            code,
+          stnCity:
+            station?.stnCity ||
+            station?.stnName ||
+            code
         });
       }
+
     });
 
-    stations = [...unique.values()];
+    stations = [...map.values()];
 
-    setupStationInputs();
+    setupStationAutocomplete();
 
-    console.log("Stations loaded:", stations.length);
+    console.log(
+      "AINEX Railway Stations:",
+      stations.length
+    );
 
   } catch (error) {
-    console.error("STATION JSON ERROR:", error);
+
+    console.error(
+      "Station loading error:",
+      error
+    );
+
   }
 }
 
@@ -131,218 +214,346 @@ async function loadStations() {
    STATION AUTOCOMPLETE
 ========================================================= */
 
-function setupStationInputs() {
-  const inputs = document.querySelectorAll(
-    'input[data-station], .station-input, input[placeholder*="station" i]'
-  );
+function setupStationAutocomplete() {
 
-  inputs.forEach(input => {
-    if (input.dataset.autocompleteReady === "1") return;
+  document
+    .querySelectorAll(
+      "input[data-station='true']"
+    )
+    .forEach(input => {
 
-    input.dataset.autocompleteReady = "1";
-
-    const wrapper =
-      input.closest(".station-field") ||
-      input.parentElement;
-
-    if (!wrapper) return;
-
-    wrapper.style.position = "relative";
-
-    const list = document.createElement("div");
-
-    list.className = "station-suggestions";
-
-    list.style.cssText = `
-      position:absolute;
-      left:0;
-      right:0;
-      top:100%;
-      z-index:9999;
-      background:#fff;
-      border:1px solid #dbe3ef;
-      border-radius:12px;
-      box-shadow:0 8px 25px rgba(0,0,0,.12);
-      max-height:280px;
-      overflow-y:auto;
-      display:none;
-    `;
-
-    wrapper.appendChild(list);
-
-    input.addEventListener("input", () => {
-      const query = clean(input.value);
-
-      if (!query) {
-        list.style.display = "none";
-        list.innerHTML = "";
+      if (
+        input.dataset.autocomplete === "yes"
+      ) {
         return;
       }
 
-      const results = stations
-        .filter(s => {
-          const code = clean(s.stnCode);
-          const name = clean(s.stnName);
-          const city = clean(s.stnCity);
+      input.dataset.autocomplete = "yes";
 
-          return (
-            code.startsWith(query) ||
-            name.startsWith(query) ||
-            city.startsWith(query) ||
-            name.includes(query) ||
-            city.includes(query)
+      const parent =
+        input.closest(".station-field") ||
+        input.parentElement;
+
+      if (!parent) return;
+
+      parent.style.position = "relative";
+
+      let list =
+        parent.querySelector(
+          ".station-suggestions"
+        );
+
+      if (!list) {
+
+        list =
+          document.createElement("div");
+
+        list.className =
+          "station-suggestions";
+
+        list.style.cssText = `
+          position:absolute;
+          left:0;
+          right:0;
+          top:100%;
+          z-index:99999;
+          background:#fff;
+          border:1px solid #dbe3ef;
+          border-radius:12px;
+          box-shadow:0 8px 25px rgba(0,0,0,.14);
+          max-height:280px;
+          overflow-y:auto;
+          display:none;
+        `;
+
+        parent.appendChild(list);
+      }
+
+      input.addEventListener(
+        "input",
+        () => {
+
+          input.dataset.stationCode = "";
+
+          const q =
+            input.value
+              .trim()
+              .toUpperCase();
+
+          if (!q) {
+            list.innerHTML = "";
+            list.style.display = "none";
+            return;
+          }
+
+          const results =
+            stations
+              .filter(station => {
+
+                const code =
+                  station.stnCode
+                    .toUpperCase();
+
+                const name =
+                  station.stnName
+                    .toUpperCase();
+
+                const city =
+                  station.stnCity
+                    .toUpperCase();
+
+                return (
+                  code.startsWith(q) ||
+                  name.startsWith(q) ||
+                  city.startsWith(q) ||
+                  name.includes(q) ||
+                  city.includes(q)
+                );
+
+              })
+              .slice(0, 15);
+
+          renderStationSuggestions(
+            input,
+            list,
+            results
           );
-        })
-        .slice(0, 12);
 
-      renderSuggestions(input, list, results);
+        }
+      );
+
+      input.addEventListener(
+        "focus",
+        () => {
+
+          if (input.value.trim()) {
+            input.dispatchEvent(
+              new Event("input")
+            );
+          }
+
+        }
+      );
+
     });
 
-    input.addEventListener("focus", () => {
-      if (input.value.trim()) {
-        input.dispatchEvent(new Event("input"));
-      }
-    });
+  document.addEventListener(
+    "click",
+    event => {
 
-    document.addEventListener("click", e => {
-      if (!wrapper.contains(e.target)) {
-        list.style.display = "none";
-      }
-    });
-  });
+      document
+        .querySelectorAll(
+          ".station-suggestions"
+        )
+        .forEach(list => {
+
+          if (
+            !list.parentElement
+              ?.contains(event.target)
+          ) {
+            list.style.display = "none";
+          }
+
+        });
+
+    }
+  );
 }
 
-function renderSuggestions(input, list, results) {
+function renderStationSuggestions(
+  input,
+  list,
+  results
+) {
+
   if (!results.length) {
+
     list.innerHTML = `
-      <div style="padding:14px;color:#777">
+      <div style="
+        padding:14px;
+        color:#777;
+      ">
         Station nahi mila
       </div>
     `;
 
     list.style.display = "block";
+
     return;
   }
 
-  list.innerHTML = results.map(s => `
-    <div
-      class="station-option"
-      data-code="${esc(s.stnCode)}"
-      style="
-        padding:12px 14px;
-        cursor:pointer;
-        border-bottom:1px solid #eef2f7;
-      "
-    >
-      <strong>${esc(s.stnCode)}</strong>
-      — ${esc(s.stnName)}
-      <small style="display:block;color:#7b8794;margin-top:3px">
-        ${esc(s.stnCity)}
-      </small>
-    </div>
-  `).join("");
+  list.innerHTML =
+    results.map(station => `
+
+      <div
+        class="station-option"
+        data-code="${esc(station.stnCode)}"
+        style="
+          padding:12px 14px;
+          cursor:pointer;
+          border-bottom:1px solid #eef2f7;
+        "
+      >
+
+        <div>
+          <strong>
+            ${esc(station.stnCode)}
+          </strong>
+
+          —
+          ${esc(station.stnName)}
+        </div>
+
+        <small style="
+          display:block;
+          color:#777;
+          margin-top:3px;
+        ">
+          ${esc(station.stnCity)}
+        </small>
+
+      </div>
+
+    `).join("");
 
   list.style.display = "block";
 
-  list.querySelectorAll(".station-option").forEach(item => {
-    item.addEventListener("click", () => {
-      const code = item.dataset.code;
+  list
+    .querySelectorAll(
+      ".station-option"
+    )
+    .forEach(option => {
 
-      input.value = code;
+      option.addEventListener(
+        "click",
+        () => {
 
-      input.dataset.stationCode = code;
+          const code =
+            option.dataset.code;
 
-      list.style.display = "none";
+          input.value = code;
 
-      input.dispatchEvent(
-        new Event("change", { bubbles: true })
+          input.dataset.stationCode =
+            code;
+
+          list.style.display =
+            "none";
+
+          input.dispatchEvent(
+            new Event(
+              "change",
+              { bubbles:true }
+            )
+          );
+
+        }
       );
+
     });
-  });
 }
 
 /* =========================================================
-   GET STATION CODE
+   STATION CODE
 ========================================================= */
 
-function getStationCode(inputId) {
-  const input = $(inputId);
+function stationValue(id) {
+
+  const input = $(id);
 
   if (!input) return "";
 
-  const typed = clean(input.value);
-
   if (input.dataset.stationCode) {
-    return clean(input.dataset.stationCode);
+    return input.dataset.stationCode
+      .trim()
+      .toUpperCase();
   }
 
-  const exactCode = stations.find(
-    s => clean(s.stnCode) === typed
-  );
+  const value =
+    input.value.trim().toUpperCase();
 
-  if (exactCode) {
-    return exactCode.stnCode;
+  const byCode =
+    stations.find(
+      station =>
+        station.stnCode === value
+    );
+
+  if (byCode) {
+    return byCode.stnCode;
   }
 
-  const exactName = stations.find(
-    s =>
-      clean(s.stnName) === typed ||
-      clean(s.stnCity) === typed
-  );
+  const byName =
+    stations.find(
+      station =>
+        station.stnName
+          .toUpperCase() === value ||
+        station.stnCity
+          .toUpperCase() === value
+    );
 
-  return exactName?.stnCode || typed;
+  return byName?.stnCode || value;
 }
 
 /* =========================================================
-   PNR STATUS
+   PNR
 ========================================================= */
 
 async function checkPNR() {
-  const input = $("pnrNumber");
-  const result = $("pnrResult");
 
-  if (!input || !result) {
-    console.error("PNR elements missing.");
+  const input = $("pnrNumber");
+
+  if (!input) {
+    console.error(
+      "pnrNumber input missing."
+    );
     return;
   }
 
-  /*
-    IMPORTANT:
-    User input ko pehle clean kar rahe hain.
-    Isse 8452336739 valid rahega.
-  */
-
-  const pnr = String(input.value || "")
-    .replace(/\D/g, "")
-    .trim();
+  let pnr =
+    input.value
+      .replace(/\D/g, "")
+      .slice(0, 10);
 
   input.value = pnr;
 
   if (!/^\d{10}$/.test(pnr)) {
-    showError(
-      result,
+
+    errorBox(
+      "pnrResult",
       "Please enter valid 10 digit PNR."
     );
+
     return;
   }
 
-  showLoading(
-    result,
+  loading(
+    "pnrResult",
     "PNR status check ho raha hai..."
   );
 
   try {
-    const data = await api("PNR", { pnr });
 
-    renderPNR(data, result);
+    const response =
+      await railway("PNR", {
+        pnr
+      });
+
+    renderPNR(
+      response,
+      "pnrResult"
+    );
 
   } catch (error) {
-    console.error("PNR ERROR:", error);
 
-    showError(
-      result,
-      error.message || "PNR status fetch nahi ho saka."
+    console.error(
+      "PNR ERROR:",
+      error
     );
+
+    errorBox(
+      "pnrResult",
+      error.message
+    );
+
   }
 }
 
@@ -350,22 +561,34 @@ async function checkPNR() {
    PNR RENDER
 ========================================================= */
 
-function renderPNR(data, box) {
-  const root =
-    data?.data ||
-    data?.result ||
-    data;
+function renderPNR(response, resultId) {
 
-  const pnr =
-    root?.pnr ||
-    root?.pnrNumber ||
-    root?.pnr_number ||
-    "-";
+  const root =
+    response?.data ||
+    response?.result ||
+    response;
+
+  const passengers =
+    root?.passengers ||
+    root?.passengerDetails ||
+    [];
+
+  const passengerList =
+    Array.isArray(passengers)
+      ? passengers
+      : [];
 
   const train =
-    root?.train ||
     root?.trainInfo ||
+    root?.train ||
     {};
+
+  const trainNumber =
+    root?.trainNumber ||
+    root?.train_no ||
+    train?.trainNumber ||
+    train?.train_no ||
+    "-";
 
   const trainName =
     root?.trainName ||
@@ -374,28 +597,16 @@ function renderPNR(data, box) {
     train?.train_name ||
     "-";
 
-  const trainNo =
-    root?.trainNumber ||
-    root?.train_no ||
-    root?.trainNo ||
-    train?.trainNumber ||
-    train?.train_no ||
-    "-";
-
   const from =
     root?.from ||
     root?.fromStation ||
     root?.from_station ||
-    root?.source ||
-    root?.sourceStation ||
     "-";
 
   const to =
     root?.to ||
     root?.toStation ||
     root?.to_station ||
-    root?.destination ||
-    root?.destinationStation ||
     "-";
 
   const journeyDate =
@@ -404,202 +615,175 @@ function renderPNR(data, box) {
     root?.date ||
     "-";
 
-  const travelClass =
-    root?.class ||
-    root?.travelClass ||
-    root?.travel_class ||
+  const pnr =
+    root?.pnr ||
+    root?.pnrNumber ||
     "-";
 
-  const passengers =
-    root?.passengers ||
-    root?.passengerDetails ||
-    root?.passenger_details ||
-    root?.passenger ||
-    [];
+  $(resultId).innerHTML = `
 
-  const passengerList = Array.isArray(passengers)
-    ? passengers
-    : [];
-
-  box.innerHTML = `
     <div class="pnr-result-card">
 
       <div class="pnr-header">
-        <small>PNR RESULT</small>
-        <h2>PNR ${esc(pnr)}</h2>
-      </div>
 
-      <div class="pnr-route">
-        <div>
-          <small>FROM</small>
-          <strong>${esc(formatStation(from))}</strong>
-        </div>
+        <small>PNR STATUS</small>
 
-        <div class="route-arrow">→</div>
+        <h2>
+          🎫 ${esc(pnr)}
+        </h2>
 
-        <div>
-          <small>TO</small>
-          <strong>${esc(formatStation(to))}</strong>
-        </div>
       </div>
 
       <div class="pnr-info-grid">
 
         <div>
           <small>TRAIN</small>
-          <strong>${esc(trainName)}</strong>
+          <strong>
+            ${esc(trainNumber)}
+          </strong>
         </div>
 
         <div>
-          <small>TRAIN NUMBER</small>
-          <strong>${esc(trainNo)}</strong>
+          <small>TRAIN NAME</small>
+          <strong>
+            ${esc(trainName)}
+          </strong>
+        </div>
+
+        <div>
+          <small>FROM</small>
+          <strong>
+            ${esc(formatStation(from))}
+          </strong>
+        </div>
+
+        <div>
+          <small>TO</small>
+          <strong>
+            ${esc(formatStation(to))}
+          </strong>
         </div>
 
         <div>
           <small>JOURNEY DATE</small>
-          <strong>${esc(formatDate(journeyDate))}</strong>
-        </div>
-
-        <div>
-          <small>CLASS</small>
-          <strong>${esc(travelClass)}</strong>
+          <strong>
+            ${esc(journeyDate)}
+          </strong>
         </div>
 
       </div>
 
-      <h3>Passenger Details</h3>
+      <h3>
+        👤 Passenger Details
+      </h3>
 
       ${
         passengerList.length
-          ? passengerList.map((p, index) =>
-              renderPassenger(p, index)
-            ).join("")
+          ? passengerList
+              .map(
+                (p, i) =>
+                  passengerHTML(p, i)
+              )
+              .join("")
           : `
-            <div class="no-passenger">
-              Passenger details API response me available nahi hain.
+            <div class="no-data">
+              Passenger details response me nahi mile.
             </div>
           `
       }
 
-      <div class="pnr-footer">
-        🔒 Railway information fetched securely.
-      </div>
-
     </div>
+
   `;
 }
 
-/* =========================================================
-   PASSENGER
-========================================================= */
+function passengerHTML(
+  passenger,
+  index
+) {
 
-function renderPassenger(p, index) {
   const booking =
-    p?.bookingStatus ||
-    p?.booking_status ||
-    p?.booking ||
-    p?.status ||
+    passenger?.bookingStatus ||
+    passenger?.booking_status ||
+    passenger?.booking ||
     "-";
 
   const current =
-    p?.currentStatus ||
-    p?.current_status ||
-    p?.current ||
-    p?.status ||
+    passenger?.currentStatus ||
+    passenger?.current_status ||
+    passenger?.current ||
     "-";
 
   const coach =
-    p?.coach ||
-    p?.coachNumber ||
-    p?.coach_number ||
-    p?.coachName ||
+    passenger?.coach ||
+    passenger?.coachNumber ||
+    passenger?.coach_number ||
     "-";
 
-  const seat =
-    p?.seatBerth ||
-    p?.seat_berth ||
-    p?.seat ||
-    p?.berth ||
-    p?.berthNumber ||
+  const berth =
+    passenger?.berth ||
+    passenger?.berthNumber ||
+    passenger?.seat ||
+    passenger?.seatNumber ||
+    passenger?.seat_berth ||
     "-";
 
   const name =
-    p?.name ||
-    p?.passengerName ||
-    p?.passenger_name ||
+    passenger?.name ||
+    passenger?.passengerName ||
     `Passenger ${index + 1}`;
 
   return `
+
     <div class="passenger-card">
 
       <div class="passenger-top">
-        <strong>${esc(name)}</strong>
+
+        <strong>
+          👤 ${esc(name)}
+        </strong>
 
         <span class="status-badge">
           ${esc(current)}
         </span>
+
       </div>
 
       <div class="passenger-grid">
 
         <div>
           <small>BOOKING STATUS</small>
-          <strong>${esc(booking)}</strong>
+          <strong>
+            ${esc(booking)}
+          </strong>
         </div>
 
         <div>
           <small>CURRENT STATUS</small>
-          <strong>${esc(current)}</strong>
+          <strong>
+            ${esc(current)}
+          </strong>
         </div>
 
         <div>
           <small>COACH</small>
-          <strong>${esc(coach)}</strong>
+          <strong>
+            ${esc(coach)}
+          </strong>
         </div>
 
         <div>
           <small>SEAT / BERTH</small>
-          <strong>${esc(seat)}</strong>
+          <strong>
+            ${esc(berth)}
+          </strong>
         </div>
 
       </div>
 
     </div>
+
   `;
-}
-
-/* =========================================================
-   TRAIN INFORMATION
-========================================================= */
-
-async function getTrainInfo() {
-  const trainNo = clean(
-    val("trainInfoNumber") ||
-    val("trainNumber")
-  );
-
-  const result =
-    $("trainInfoResult") ||
-    $("trainInformationResult");
-
-  if (!/^\d{5}$/.test(trainNo)) {
-    showError(result, "5 digit train number enter karo.");
-    return;
-  }
-
-  showLoading(
-    result,
-    "Train information load ho rahi hai..."
-  );
-
-  try {
-    const data = await api("TRAIN", { trainNo });
-
-    renderGenericResult(result, data);
-
-  } catch (error) {
-    showError(result, error.message);
-  }
 }
 
 /* =========================================================
@@ -607,46 +791,58 @@ async function getTrainInfo() {
 ========================================================= */
 
 async function checkLiveTrain() {
-  const trainNo = clean(
-    val("liveTrainNumber") ||
-    val("liveTrainNo") ||
-    val("trainNumberLive")
-  );
+
+  const trainNo =
+    upper("liveTrainNumber");
 
   const date =
-    val("liveTrainDate") ||
-    val("liveDate") ||
-    val("journeyDate");
-
-  const result =
-    $("liveTrainResult") ||
-    $("liveResult");
+    text("liveTrainDate");
 
   if (!/^\d{5}$/.test(trainNo)) {
-    showError(result, "5 digit train number enter karo.");
+
+    errorBox(
+      "liveTrainResult",
+      "5 digit train number enter karo."
+    );
+
     return;
   }
 
   if (!date) {
-    showError(result, "Journey date required.");
+
+    errorBox(
+      "liveTrainResult",
+      "Journey date required."
+    );
+
     return;
   }
 
-  showLoading(
-    result,
+  loading(
+    "liveTrainResult",
     "Live train location check ho rahi hai..."
   );
 
   try {
-    const data = await api("LIVE", {
-      trainNo,
-      date: convertDate(date)
-    });
 
-    renderLiveTrain(data, result);
+    const response =
+      await railway("LIVE", {
+        trainNo,
+        date: dateForAPI(date)
+      });
+
+    renderLiveTrain(
+      response,
+      "liveTrainResult"
+    );
 
   } catch (error) {
-    showError(result, error.message);
+
+    errorBox(
+      "liveTrainResult",
+      error.message
+    );
+
   }
 }
 
@@ -654,211 +850,301 @@ async function checkLiveTrain() {
    LIVE TRAIN RENDER
 ========================================================= */
 
-function renderLiveTrain(data, box) {
+function renderLiveTrain(
+  response,
+  resultId
+) {
+
   const root =
-    data?.data ||
-    data?.result ||
-    data;
-
-  const train =
-    root?.train ||
-    {};
-
-  const stationsData =
-    root?.stations ||
-    root?.stationUpdates ||
-    root?.route ||
-    [];
-
-  const list = Array.isArray(stationsData)
-    ? stationsData
-    : [];
+    response?.data ||
+    response?.result ||
+    response;
 
   const current =
     root?.currentStation ||
     root?.current_station ||
     root?.currentLocation ||
     root?.current_location ||
-    null;
+    root?.current ||
+    {};
 
   const next =
     root?.nextStation ||
     root?.next_station ||
-    null;
+    root?.next ||
+    {};
 
-  box.innerHTML = `
+  $(resultId).innerHTML = `
+
     <div class="live-result-card">
 
-      <h2>📍 Live Train Status</h2>
-
-      <p>
-        <b>Train:</b>
-        ${esc(
-          root?.trainName ||
-          train?.trainName ||
-          train?.train_name ||
-          "-"
-        )}
-      </p>
-
-      <p>
-        <b>Train Number:</b>
-        ${esc(
-          root?.trainNo ||
-          root?.trainNumber ||
-          train?.trainNo ||
-          "-"
-        )}
-      </p>
+      <h2>
+        📍 Live Train
+      </h2>
 
       <div class="current-location">
-        <h3>🟢 CURRENT LOCATION</h3>
+
+        <h3>
+          🟢 CURRENT LOCATION
+        </h3>
 
         <strong>
           ${esc(
-            getLocationName(current) || "-"
+            stationName(current)
           )}
         </strong>
 
         <div class="time-grid">
 
           <div>
-            <small>ACTUAL TIME</small>
+            <small>ACTUAL</small>
             <strong>
-              ${esc(
-                getActualTime(current)
-              )}
-            </strong>
-          </div>
-
-          <div>
-            <small>SCHEDULED TIME</small>
-            <strong>
-              ${esc(
-                getScheduledTime(current)
-              )}
-            </strong>
-          </div>
-
-          <div>
-            <small>DELAY</small>
-            <strong>
-              ${esc(
-                getDelay(current)
-              )}
-            </strong>
-          </div>
-
-        </div>
-      </div>
-
-      <div class="next-station">
-        <h3>🔵 NEXT STATION</h3>
-
-        <strong>
-          ${esc(
-            getLocationName(next) || "-"
-          )}
-        </strong>
-
-        <div class="time-grid">
-
-          <div>
-            <small>EXPECTED / ACTUAL</small>
-            <strong>
-              ${esc(
-                getActualTime(next)
-              )}
+              ${esc(actualTime(current))}
             </strong>
           </div>
 
           <div>
             <small>SCHEDULED</small>
             <strong>
-              ${esc(
-                getScheduledTime(next)
-              )}
+              ${esc(scheduledTime(current))}
+            </strong>
+          </div>
+
+          <div>
+            <small>DELAY</small>
+            <strong>
+              ${esc(delayText(current))}
             </strong>
           </div>
 
         </div>
+
       </div>
 
-      ${
-        root?.status
-          ? `
-            <p class="train-status">
-              <b>Status:</b>
-              ${esc(root.status)}
-            </p>
-          `
-          : ""
-      }
+      <div class="next-station">
+
+        <h3>
+          🔵 NEXT STATION
+        </h3>
+
+        <strong>
+          ${esc(
+            stationName(next)
+          )}
+        </strong>
+
+        <div class="time-grid">
+
+          <div>
+            <small>EXPECTED</small>
+            <strong>
+              ${esc(actualTime(next))}
+            </strong>
+          </div>
+
+          <div>
+            <small>SCHEDULED</small>
+            <strong>
+              ${esc(scheduledTime(next))}
+            </strong>
+          </div>
+
+        </div>
+
+      </div>
 
     </div>
+
   `;
 }
 
-function getLocationName(item) {
-  if (!item) return "";
+function stationName(obj) {
+
+  if (!obj) return "-";
 
   return (
-    item?.stationName ||
-    item?.station_name ||
-    item?.name ||
-    item?.stnName ||
-    item?.station ||
-    item?.code ||
-    ""
-  );
-}
-
-function getActualTime(item) {
-  if (!item) return "-";
-
-  return (
-    item?.actualTime ||
-    item?.actual_time ||
-    item?.actual ||
-    item?.arrival?.actual ||
-    item?.departure?.actual ||
-    item?.expected ||
+    obj?.stationName ||
+    obj?.station_name ||
+    obj?.stnName ||
+    obj?.name ||
+    obj?.station ||
+    obj?.code ||
     "-"
   );
 }
 
-function getScheduledTime(item) {
-  if (!item) return "-";
+function actualTime(obj) {
+
+  if (!obj) return "-";
 
   return (
-    item?.scheduledTime ||
-    item?.scheduled_time ||
-    item?.scheduled ||
-    item?.arrival?.scheduled ||
-    item?.departure?.scheduled ||
+    obj?.actualTime ||
+    obj?.actual_time ||
+    obj?.actual ||
+    obj?.arrival?.actual ||
+    obj?.departure?.actual ||
+    obj?.expected ||
     "-"
   );
 }
 
-function getDelay(item) {
-  if (!item) return "-";
+function scheduledTime(obj) {
+
+  if (!obj) return "-";
+
+  return (
+    obj?.scheduledTime ||
+    obj?.scheduled_time ||
+    obj?.scheduled ||
+    obj?.arrival?.scheduled ||
+    obj?.departure?.scheduled ||
+    "-"
+  );
+}
+
+function delayText(obj) {
+
+  if (!obj) return "-";
 
   const delay =
-    item?.delay ??
-    item?.delayMinutes ??
-    item?.delay_minutes ??
-    item?.arrival?.delay ??
-    item?.departure?.delay;
+    obj?.delay ??
+    obj?.delayMinutes ??
+    obj?.delay_minutes ??
+    obj?.arrival?.delay ??
+    obj?.departure?.delay;
 
   if (
     delay === undefined ||
     delay === null ||
     delay === ""
   ) {
-    return "- min";
+    return "-";
   }
 
-  return `${delay} min`;
+  return `${delay} min late`;
+}
+
+/* =========================================================
+   TRAIN INFORMATION
+========================================================= */
+
+async function getTrainInfo() {
+
+  const trainNo =
+    upper("trainInfoNumber");
+
+  if (!/^\d{5}$/.test(trainNo)) {
+
+    errorBox(
+      "trainInfoResult",
+      "5 digit train number enter karo."
+    );
+
+    return;
+  }
+
+  loading(
+    "trainInfoResult",
+    "Train information load ho rahi hai..."
+  );
+
+  try {
+
+    const response =
+      await railway("TRAIN", {
+        trainNo
+      });
+
+    const d =
+      response?.display ||
+      response?.data?.trainInfo ||
+      response?.data ||
+      {};
+
+    $("trainInfoResult").innerHTML = `
+
+      <div class="train-card">
+
+        <h2>
+          🚆 ${esc(
+            d.trainName ||
+            d.train_name ||
+            "-"
+          )}
+        </h2>
+
+        <p>
+          <b>Train No:</b>
+          ${esc(
+            d.trainNo ||
+            d.train_no ||
+            trainNo
+          )}
+        </p>
+
+        <p>
+          <b>Route:</b>
+          ${esc(
+            d.from ||
+            d.from_stn_name ||
+            "-"
+          )}
+          →
+          ${esc(
+            d.to ||
+            d.to_stn_name ||
+            "-"
+          )}
+        </p>
+
+        <p>
+          <b>Departure:</b>
+          ${esc(
+            d.departure ||
+            d.from_time ||
+            "-"
+          )}
+        </p>
+
+        <p>
+          <b>Arrival:</b>
+          ${esc(
+            d.arrival ||
+            d.to_time ||
+            "-"
+          )}
+        </p>
+
+        <p>
+          <b>Travel Time:</b>
+          ${esc(
+            d.travelTime ||
+            d.travel_time ||
+            "-"
+          )}
+        </p>
+
+        <p>
+          <b>Running Days:</b>
+          ${esc(
+            d.runningDays ||
+            d.running_days ||
+            "-"
+          )}
+        </p>
+
+      </div>
+
+    `;
+
+  } catch (error) {
+
+    errorBox(
+      "trainInfoResult",
+      error.message
+    );
+
+  }
 }
 
 /* =========================================================
@@ -866,133 +1152,166 @@ function getDelay(item) {
 ========================================================= */
 
 async function searchTrains() {
-  const from = getStationCode("fromStation");
-  const to = getStationCode("toStation");
+
+  const from =
+    stationValue("fromStation");
+
+  const to =
+    stationValue("toStation");
 
   const date =
-    val("searchDate") ||
-    val("trainSearchDate") ||
-    val("journeyDateSearch");
-
-  const result =
-    $("searchResult") ||
-    $("trainSearchResult");
+    text("searchDate");
 
   if (!from) {
-    showError(result, "From station select karo.");
+
+    errorBox(
+      "searchResult",
+      "From station select karo."
+    );
+
     return;
   }
 
   if (!to) {
-    showError(result, "To station select karo.");
+
+    errorBox(
+      "searchResult",
+      "To station select karo."
+    );
+
     return;
   }
 
   if (from === to) {
-    showError(
-      result,
-      "From aur To station same nahi ho sakte."
+
+    errorBox(
+      "searchResult",
+      "From aur To same nahi ho sakte."
     );
+
     return;
   }
 
-  showLoading(
-    result,
+  loading(
+    "searchResult",
     "Trains search ho rahi hain..."
   );
 
   try {
-    const data = await api("SEARCH", {
-      from,
-      to,
-      date: date ? convertDate(date) : ""
-    });
 
-    renderTrainSearch(data, result);
+    const response =
+      await railway("SEARCH", {
+        from,
+        to,
+        date: dateForAPI(date)
+      });
+
+    renderTrainSearch(
+      response,
+      "searchResult"
+    );
 
   } catch (error) {
-    showError(result, error.message);
+
+    errorBox(
+      "searchResult",
+      error.message
+    );
+
   }
 }
 
-/* =========================================================
-   TRAIN SEARCH RENDER
-========================================================= */
+function renderTrainSearch(
+  response,
+  resultId
+) {
 
-function renderTrainSearch(data, box) {
   const list =
-    Array.isArray(data?.display)
-      ? data.display
-      : Array.isArray(data?.data)
-        ? data.data
-        : [];
+    response?.display ||
+    response?.data ||
+    [];
 
-  if (!list.length) {
-    box.innerHTML = `
-      <div class="no-data">
-        🚆 Is route par train data nahi mila.
-      </div>
-    `;
+  if (!Array.isArray(list) || !list.length) {
+
+    emptyBox(
+      resultId,
+      "Is route par train data nahi mila."
+    );
+
     return;
   }
 
-  box.innerHTML = list.map(t => `
-    <div class="train-card">
+  $(resultId).innerHTML =
+    list.map(train => `
 
-      <h3>
-        🚆 ${esc(
-          t.trainName ||
-          t.train_name ||
-          "-"
-        )}
-      </h3>
+      <div class="train-card">
 
-      <strong>
-        ${esc(
-          t.trainNo ||
-          t.train_no ||
-          "-"
-        )}
-      </strong>
+        <h3>
+          🚆 ${esc(
+            train.trainName ||
+            train.train_name ||
+            "-"
+          )}
+        </h3>
 
-      <p>
-        ${esc(
-          t.from ||
-          t.from_stn_name ||
-          "-"
-        )}
-        →
-        ${esc(
-          t.to ||
-          t.to_stn_name ||
-          "-"
-        )}
-      </p>
+        <strong>
+          ${esc(
+            train.trainNo ||
+            train.train_no ||
+            "-"
+          )}
+        </strong>
 
-      <p>
-        🕐 ${esc(
-          t.departure ||
-          t.from_time ||
-          "-"
-        )}
-        →
-        ${esc(
-          t.arrival ||
-          t.to_time ||
-          "-"
-        )}
-      </p>
+        <p>
+          ${esc(
+            train.from ||
+            train.from_stn_name ||
+            "-"
+          )}
+          →
+          ${esc(
+            train.to ||
+            train.to_stn_name ||
+            "-"
+          )}
+        </p>
 
-      <p>
-        ⏱️ ${esc(
-          t.travelTime ||
-          t.travel_time ||
-          "-"
-        )}
-      </p>
+        <p>
+          🕐
+          ${esc(
+            train.departure ||
+            train.from_time ||
+            "-"
+          )}
+          →
+          ${esc(
+            train.arrival ||
+            train.to_time ||
+            "-"
+          )}
+        </p>
 
-    </div>
-  `).join("");
+        <p>
+          ⏱️
+          ${esc(
+            train.travelTime ||
+            train.travel_time ||
+            "-"
+          )}
+        </p>
+
+        <p>
+          📅
+          ${esc(
+            train.runningDays ||
+            train.running_days ||
+            "-"
+          )}
+        </p>
+
+      </div>
+
+    `).join("");
 }
 
 /* =========================================================
@@ -1000,136 +1319,156 @@ function renderTrainSearch(data, box) {
 ========================================================= */
 
 async function checkLiveStation() {
+
   const station =
-    getStationCode("liveStation") ||
-    getStationCode("stationCode");
+    stationValue("liveStation");
 
   const hours =
-    val("liveStationHours") ||
-    val("stationHours") ||
-    "2";
+    text("liveStationHours") || "2";
 
-  const result =
-    $("liveStationResult") ||
-    $("stationResult");
+  if (!/^[A-Z]{1,5}$/.test(station)) {
 
-  if (!/^[A-Z]{2,5}$/.test(station)) {
-    showError(
-      result,
+    errorBox(
+      "liveStationResult",
       "Valid station select karo."
     );
+
     return;
   }
 
-  showLoading(
-    result,
+  loading(
+    "liveStationResult",
     "Live station trains load ho rahi hain..."
   );
 
   try {
-    const data = await api("STATION", {
-      station,
-      hours
-    });
 
-    renderLiveStation(data, result);
+    const response =
+      await railway("STATION", {
+        station,
+        hours
+      });
+
+    renderLiveStation(
+      response,
+      "liveStationResult"
+    );
 
   } catch (error) {
-    showError(result, error.message);
+
+    errorBox(
+      "liveStationResult",
+      error.message
+    );
+
   }
 }
 
-/* =========================================================
-   LIVE STATION RENDER
-========================================================= */
+function renderLiveStation(
+  response,
+  resultId
+) {
 
-function renderLiveStation(data, box) {
   const root =
-    data?.data ||
-    data?.result ||
-    data;
+    response?.data ||
+    response?.result ||
+    response;
 
   const trains =
     root?.trains ||
-    data?.display ||
+    response?.display ||
     [];
 
-  const list =
-    Array.isArray(trains)
-      ? trains
-      : [];
+  if (!Array.isArray(trains) || !trains.length) {
 
-  box.innerHTML = `
+    emptyBox(
+      resultId,
+      "Is station par live train data nahi mila."
+    );
+
+    return;
+  }
+
+  $(resultId).innerHTML = `
+
     <div class="station-live-card">
 
-      <h2>🚉 ${esc(
-        root?.stationName ||
-        root?.station ||
-        root?.stnCode ||
-        "-"
-      )} Live Station</h2>
+      <h2>
+        🚉 Live Station
+      </h2>
 
-      <p>
-        ${list.length} trains found
-      </p>
+      ${trains.map(train => `
 
-      ${
-        list.length
-          ? list.map(t => `
-              <div class="station-train-card">
+        <div class="station-train-card">
 
-                <h3>
-                  🚆 ${esc(
-                    t.trainNo ||
-                    t.train_no ||
-                    "-"
-                  )}
-                  —
-                  ${esc(
-                    t.trainName ||
-                    t.train_name ||
-                    "-"
-                  )}
-                </h3>
+          <h3>
+            🚆 ${esc(
+              train.trainNo ||
+              train.train_no ||
+              "-"
+            )}
+          </h3>
 
-                <p>
-                  🟢 Arrival:
-                  ${esc(
-                    t.arrival?.actual ||
-                    t.arrival?.scheduled ||
-                    t.arrival ||
-                    "-"
-                  )}
-                </p>
+          <strong>
+            ${esc(
+              train.trainName ||
+              train.train_name ||
+              "-"
+            )}
+          </strong>
 
-                <p>
-                  🔵 Departure:
-                  ${esc(
-                    t.departure?.actual ||
-                    t.departure?.scheduled ||
-                    t.departure ||
-                    "-"
-                  )}
-                </p>
+          <p>
+            From:
+            ${esc(
+              train.sourceName ||
+              train.from ||
+              "-"
+            )}
+          </p>
 
-                <p>
-                  🚉 Platform:
-                  ${esc(
-                    t.platform ||
-                    "-"
-                  )}
-                </p>
+          <p>
+            To:
+            ${esc(
+              train.destName ||
+              train.to ||
+              "-"
+            )}
+          </p>
 
-              </div>
-            `).join("")
-          : `
-              <div class="no-data">
-                Live train data available nahi hai.
-              </div>
-            `
-      }
+          <p>
+            🕐 Arrival:
+            ${esc(
+              train.arrival?.actual ||
+              train.arrival?.scheduled ||
+              train.arrival ||
+              "-"
+            )}
+          </p>
+
+          <p>
+            ⏱️ Delay:
+            ${esc(
+              train.arrival?.delay ??
+              train.delay ??
+              0
+            )}
+            min
+          </p>
+
+          <p>
+            🚉 Platform:
+            ${esc(
+              train.platform ||
+              "-"
+            )}
+          </p>
+
+        </div>
+
+      `).join("")}
 
     </div>
+
   `;
 }
 
@@ -1138,154 +1477,181 @@ function renderLiveStation(data, box) {
 ========================================================= */
 
 async function checkSeats() {
-  const trainNo = clean(
-    val("seatTrainNumber") ||
-    val("availabilityTrainNumber") ||
-    val("trainNumberSeat")
-  );
 
-  const from = getStationCode(
-    "seatFromStation"
-  );
+  const trainNo =
+    upper("seatTrainNumber");
 
-  const to = getStationCode(
-    "seatToStation"
-  );
+  const from =
+    stationValue("seatFromStation");
+
+  const to =
+    stationValue("seatToStation");
 
   const date =
-    val("seatDate") ||
-    val("availabilityDate");
+    text("seatDate");
 
-  const coach = clean(
-    val("seatClass") ||
-    val("coach")
-  );
+  const coach =
+    upper("seatClass");
 
-  const quota = clean(
-    val("seatQuota") ||
-    val("quota")
-  );
-
-  const result =
-    $("seatResult") ||
-    $("availabilityResult");
+  const quota =
+    upper("seatQuota");
 
   if (!/^\d{5}$/.test(trainNo)) {
-    showError(result, "Invalid train number.");
+
+    errorBox(
+      "seatResult",
+      "Valid train number enter karo."
+    );
+
     return;
   }
 
-  if (
-    !/^[A-Z]{2,5}$/.test(from) ||
-    !/^[A-Z]{2,5}$/.test(to)
-  ) {
-    showError(result, "Valid From/To station select karo.");
+  if (!from || !to) {
+
+    errorBox(
+      "seatResult",
+      "From aur To station select karo."
+    );
+
     return;
   }
 
   if (!date || !coach || !quota) {
-    showError(
-      result,
+
+    errorBox(
+      "seatResult",
       "Date, class aur quota required."
     );
+
     return;
   }
 
-  showLoading(
-    result,
+  loading(
+    "seatResult",
     "Seat availability check ho rahi hai..."
   );
 
   try {
-    const data = await api("SEATS", {
-      trainNo,
-      from,
-      to,
-      date: convertDate(date),
-      coach,
-      quota
-    });
 
-    renderSeats(data, result);
+    const response =
+      await railway("SEATS", {
+        trainNo,
+        from,
+        to,
+        date: dateForAPI(date),
+        coach,
+        quota
+      });
+
+    renderSeats(
+      response,
+      "seatResult"
+    );
 
   } catch (error) {
-    showError(result, error.message);
+
+    errorBox(
+      "seatResult",
+      error.message
+    );
+
   }
 }
 
-/* =========================================================
-   SEAT RENDER
-========================================================= */
+function renderSeats(
+  response,
+  resultId
+) {
 
-function renderSeats(data, box) {
-  const display =
-    data?.display ||
-    data?.data ||
+  const d =
+    response?.display ||
+    response?.data ||
     {};
 
-  const availability =
-    display?.availability ||
+  const list =
+    d?.availability ||
     [];
 
-  box.innerHTML = `
+  $(resultId).innerHTML = `
+
     <div class="availability-result">
 
       <h2>
-        🚆 ${esc(display.trainName || "-")}
+        🚆 ${esc(
+          d.trainName || "-"
+        )}
       </h2>
 
       <p>
-        ${esc(display.trainNo || "-")}
+        <b>Train:</b>
+        ${esc(
+          d.trainNo || "-"
+        )}
       </p>
 
       <p>
-        ${esc(display.from || "-")}
+        ${esc(
+          d.from || "-"
+        )}
         →
-        ${esc(display.to || "-")}
+        ${esc(
+          d.to || "-"
+        )}
       </p>
 
-      <h3>
-        💰 Fare:
-        ₹${esc(display.totalFare || display.baseFare || "-")}
-      </h3>
+      <p>
+        💰 Total Fare:
+        ₹${esc(
+          d.totalFare ||
+          d.baseFare ||
+          "-"
+        )}
+      </p>
 
       ${
-        availability.length
-          ? availability.map(a => `
+        list.length
+          ? list.map(item => `
+
               <div class="availability-card">
 
                 <strong>
-                  ${esc(a.date || "-")}
+                  ${esc(
+                    item.date || "-"
+                  )}
                 </strong>
 
                 <p>
-                  🎫 ${esc(
-                    a.status ||
-                    a.availabilityText ||
-                    "-"
+                  🎫
+                  ${esc(
+                    item.status || "-"
                   )}
                 </p>
 
                 ${
-                  a.prediction
+                  item.prediction
                     ? `
                       <p>
-                        📊 ${esc(a.prediction)}
+                        📊
+                        ${esc(
+                          item.prediction
+                        )}
                       </p>
                     `
                     : ""
                 }
 
               </div>
+
             `).join("")
           : `
-              <div class="no-data">
-                Availability data nahi mila.
-              </div>
-            `
+            <div class="no-data">
+              Availability data nahi mila.
+            </div>
+          `
       }
 
     </div>
+
   `;
 }
 
@@ -1294,69 +1660,71 @@ function renderSeats(data, box) {
 ========================================================= */
 
 async function checkFare() {
-  const trainNo = clean(
-    val("fareTrainNumber") ||
-    val("fareTrainNo")
-  );
 
-  const from = getStationCode(
-    "fareFromStation"
-  );
+  const trainNo =
+    upper("fareTrainNumber");
 
-  const to = getStationCode(
-    "fareToStation"
-  );
+  const from =
+    stationValue("fareFromStation");
+
+  const to =
+    stationValue("fareToStation");
 
   const date =
-    val("fareDate");
+    text("fareDate");
 
-  const travelClass = clean(
-    val("fareClass") ||
-    val("travelClass")
-  );
+  const travelClass =
+    upper("fareClass");
 
-  const quota = clean(
-    val("fareQuota") ||
-    val("quotaFare")
-  );
-
-  const result =
-    $("fareResult");
+  const quota =
+    upper("fareQuota");
 
   if (
     !/^\d{5}$/.test(trainNo) ||
-    !/^[A-Z]{2,5}$/.test(from) ||
-    !/^[A-Z]{2,5}$/.test(to) ||
+    !from ||
+    !to ||
     !date ||
     !travelClass ||
     !quota
   ) {
-    showError(
-      result,
+
+    errorBox(
+      "fareResult",
       "Fare enquiry details incomplete hain."
     );
+
     return;
   }
 
-  showLoading(
-    result,
+  loading(
+    "fareResult",
     "Fare check ho raha hai..."
   );
 
   try {
-    const data = await api("FARE", {
-      trainNo,
-      from,
-      to,
-      date: convertDate(date),
-      travelClass,
-      quota
-    });
 
-    renderGenericResult(result, data);
+    const response =
+      await railway("FARE", {
+        trainNo,
+        from,
+        to,
+        date: dateForAPI(date),
+        travelClass,
+        quota
+      });
+
+    renderObject(
+      "fareResult",
+      response
+    );
 
   } catch (error) {
-    showError(result, error.message);
+
+    errorBox(
+      "fareResult",
+      error.message
+    );
+
   }
 }
 
@@ -1364,297 +1732,240 @@ async function checkFare() {
    HISTORY
 ========================================================= */
 
-async function checkTrainHistory() {
-  const trainNo = clean(
-    val("historyTrainNumber") ||
-    val("historyTrainNo")
-  );
+async function checkHistory() {
+
+  const trainNo =
+    upper("historyTrainNumber");
 
   const date =
-    val("historyDate");
-
-  const result =
-    $("historyResult");
+    text("historyDate");
 
   if (!/^\d{5}$/.test(trainNo)) {
-    showError(
-      result,
+
+    errorBox(
+      "historyResult",
       "5 digit train number enter karo."
     );
+
     return;
   }
 
   if (!date) {
-    showError(
-      result,
+
+    errorBox(
+      "historyResult",
       "Journey date required."
     );
+
     return;
   }
 
-  showLoading(
-    result,
+  loading(
+    "historyResult",
     "Train history check ho rahi hai..."
   );
 
   try {
-    const data = await api("HISTORY", {
-      trainNo,
-      date: convertDate(date)
-    });
 
-    renderGenericResult(result, data);
+    const response =
+      await railway("HISTORY", {
+        trainNo,
+        date: dateForAPI(date)
+      });
+
+    renderObject(
+      "historyResult",
+      response
+    );
 
   } catch (error) {
-    showError(result, error.message);
+
+    errorBox(
+      "historyResult",
+      error.message
+    );
+
   }
 }
 
 /* =========================================================
-   CANCELLED TRAINS
+   CANCELLED
 ========================================================= */
 
-async function checkCancelledTrains() {
-  const result =
-    $("cancelledResult");
+async function checkCancelled() {
 
-  showLoading(
-    result,
+  loading(
+    "cancelledResult",
     "Cancelled trains check ho rahi hain..."
   );
 
   try {
-    const data = await api("CANCELLED");
 
-    renderGenericResult(result, data);
+    const response =
+      await railway(
+        "CANCELLED"
+      );
+
+    renderObject(
+      "cancelledResult",
+      response
+    );
 
   } catch (error) {
-    showError(result, error.message);
+
+    errorBox(
+      "cancelledResult",
+      error.message
+    );
+
   }
 }
 
 /* =========================================================
-   GENERIC RESULT
+   GENERIC
 ========================================================= */
 
-function renderGenericResult(box, data) {
-  if (!box) return;
+function renderObject(
+  resultId,
+  response
+) {
 
-  const content =
-    data?.display ||
-    data?.data ||
-    data?.result ||
-    data;
+  const data =
+    response?.data ||
+    response?.result ||
+    response;
 
-  box.innerHTML = `
+  $(resultId).innerHTML = `
+
     <div class="generic-result">
+
       <pre>${esc(
-        JSON.stringify(content, null, 2)
+        JSON.stringify(
+          data,
+          null,
+          2
+        )
       )}</pre>
+
     </div>
+
   `;
 }
 
 /* =========================================================
-   DATE
+   FORM EVENTS
 ========================================================= */
 
-function convertDate(value) {
-  if (!value) return "";
+document.addEventListener(
+  "DOMContentLoaded",
+  () => {
 
-  const s = String(value);
+    loadStations();
 
-  if (/^\d{2}-\d{2}-\d{4}$/.test(s)) {
-    return s;
-  }
-
-  const match =
-    s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-
-  if (match) {
-    return `${match[3]}-${match[2]}-${match[1]}`;
-  }
-
-  return s;
-}
-
-function formatDate(value) {
-  if (!value) return "-";
-
-  const s = String(value);
-
-  const date =
-    new Date(s);
-
-  if (!Number.isNaN(date.getTime())) {
-    return date.toLocaleDateString(
-      "en-IN",
-      {
-        day: "2-digit",
-        month: "short",
-        year: "numeric"
+    /* PNR */
+    $("pnrForm")?.addEventListener(
+      "submit",
+      event => {
+        event.preventDefault();
+        checkPNR();
       }
     );
-  }
 
-  return s;
-}
-
-function formatStation(value) {
-  if (!value) return "-";
-
-  if (typeof value === "object") {
-    return (
-      value?.name ||
-      value?.stationName ||
-      value?.station_name ||
-      value?.code ||
-      "-"
-    );
-  }
-
-  return value;
-}
-
-/* =========================================================
-   BUTTON AUTO CONNECT
-========================================================= */
-
-document.addEventListener("DOMContentLoaded", () => {
-
-  loadStations();
-
-  /* PNR */
-  document
-    .querySelectorAll(
-      '[data-action="pnr"], #checkPNR, #checkPnr'
-    )
-    .forEach(btn => {
-      btn.addEventListener("click", e => {
-        e.preventDefault();
-        checkPNR();
-      });
-    });
-
-  /* Train Info */
-  document
-    .querySelectorAll(
-      '[data-action="train-info"], #checkTrainInfo'
-    )
-    .forEach(btn => {
-      btn.addEventListener("click", e => {
-        e.preventDefault();
-        getTrainInfo();
-      });
-    });
-
-  /* Live Train */
-  document
-    .querySelectorAll(
-      '[data-action="live"], #checkLiveTrain'
-    )
-    .forEach(btn => {
-      btn.addEventListener("click", e => {
-        e.preventDefault();
+    /* LIVE */
+    $("liveForm")?.addEventListener(
+      "submit",
+      event => {
+        event.preventDefault();
         checkLiveTrain();
-      });
-    });
-
-  /* Search */
-  document
-    .querySelectorAll(
-      '[data-action="search"], #searchTrains'
-    )
-    .forEach(btn => {
-      btn.addEventListener("click", e => {
-        e.preventDefault();
-        searchTrains();
-      });
-    });
-
-  /* Live Station */
-  document
-    .querySelectorAll(
-      '[data-action="station"], #checkLiveStation'
-    )
-    .forEach(btn => {
-      btn.addEventListener("click", e => {
-        e.preventDefault();
-        checkLiveStation();
-      });
-    });
-
-  /* Seats */
-  document
-    .querySelectorAll(
-      '[data-action="seats"], #checkSeats'
-    )
-    .forEach(btn => {
-      btn.addEventListener("click", e => {
-        e.preventDefault();
-        checkSeats();
-      });
-    });
-
-  /* Fare */
-  document
-    .querySelectorAll(
-      '[data-action="fare"], #checkFare'
-    )
-    .forEach(btn => {
-      btn.addEventListener("click", e => {
-        e.preventDefault();
-        checkFare();
-      });
-    });
-
-  /* History */
-  document
-    .querySelectorAll(
-      '[data-action="history"], #checkHistory'
-    )
-    .forEach(btn => {
-      btn.addEventListener("click", e => {
-        e.preventDefault();
-        checkTrainHistory();
-      });
-    });
-
-  /* Cancelled */
-  document
-    .querySelectorAll(
-      '[data-action="cancelled"], #checkCancelled'
-    )
-    .forEach(btn => {
-      btn.addEventListener("click", e => {
-        e.preventDefault();
-        checkCancelledTrains();
-      });
-    });
-
-  /* Enter key PNR */
-  $("pnrNumber")?.addEventListener(
-    "keydown",
-    e => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        checkPNR();
       }
-    }
-  );
+    );
 
-});
+    /* TRAIN INFO */
+    $("trainInfoForm")?.addEventListener(
+      "submit",
+      event => {
+        event.preventDefault();
+        getTrainInfo();
+      }
+    );
+
+    /* SEARCH */
+    $("searchForm")?.addEventListener(
+      "submit",
+      event => {
+        event.preventDefault();
+        searchTrains();
+      }
+    );
+
+    /* LIVE STATION */
+    $("stationForm")?.addEventListener(
+      "submit",
+      event => {
+        event.preventDefault();
+        checkLiveStation();
+      }
+    );
+
+    /* SEATS */
+    $("seatForm")?.addEventListener(
+      "submit",
+      event => {
+        event.preventDefault();
+        checkSeats();
+      }
+    );
+
+    /* FARE */
+    $("fareForm")?.addEventListener(
+      "submit",
+      event => {
+        event.preventDefault();
+        checkFare();
+      }
+    );
+
+    /* HISTORY */
+    $("historyForm")?.addEventListener(
+      "submit",
+      event => {
+        event.preventDefault();
+        checkHistory();
+      }
+    );
+
+    /* CANCELLED */
+    $("checkCancelled")?.addEventListener(
+      "click",
+      checkCancelled
+    );
+
+    /* PNR only numbers */
+    $("pnrNumber")?.addEventListener(
+      "input",
+      event => {
+
+        event.target.value =
+          event.target.value
+            .replace(/\D/g, "")
+            .slice(0, 10);
+
+      }
+    );
+
+  }
+);
 
 /* =========================================================
-   GLOBAL ACCESS
+   GLOBAL
 ========================================================= */
 
 window.checkPNR = checkPNR;
-window.getTrainInfo = getTrainInfo;
 window.checkLiveTrain = checkLiveTrain;
+window.getTrainInfo = getTrainInfo;
 window.searchTrains = searchTrains;
 window.checkLiveStation = checkLiveStation;
 window.checkSeats = checkSeats;
 window.checkFare = checkFare;
-window.checkTrainHistory = checkTrainHistory;
-window.checkCancelledTrains = checkCancelledTrains;
+window.checkHistory = checkHistory;
+window.checkCancelled = checkCancelled;
