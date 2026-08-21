@@ -1,0 +1,319 @@
+{
+  "stations": [
+    {
+      "stnCode": "BV",
+      "stnName": "Babhnan",
+      "stnCity": "Babhnan"
+    },
+    {
+      "stnCode": "AYC",
+      "stnName": "Ayodhya Cantt",
+      "stnCity": "Ayodhya"
+    },
+    {
+      "stnCode": "AY",
+      "stnName": "Ayodhya Dham Junction",
+      "stnCity": "Ayodhya"
+    },
+    {
+      "stnCode": "GKP",
+      "stnName": "Gorakhpur Junction",
+      "stnCity": "Gorakhpur"
+    },
+    {
+      "stnCode": "BST",
+      "stnName": "Basti",
+      "stnCity": "Basti"
+    },
+    {
+      "stnCode": "LKO",
+      "stnName": "Lucknow",
+      "stnCity": "Lucknow"
+    },
+    {
+      "stnCode": "GD",
+      "stnName": "Gonda Junction",
+      "stnCity": "Gonda"
+    },
+    {
+      "stnCode": "CNB",
+      "stnName": "Kanpur Central",
+      "stnCity": "Kanpur"
+    },
+    {
+      "stnCode": "PRYJ",
+      "stnName": "Prayagraj Junction",
+      "stnCity": "Prayagraj"
+    },
+    {
+      "stnCode": "BSB",
+      "stnName": "Varanasi Junction",
+      "stnCity": "Varanasi"
+    },
+    {
+      "stnCode": "NDLS",
+      "stnName": "New Delhi",
+      "stnCity": "Delhi"
+    },
+    {
+      "stnCode": "DLI",
+      "stnName": "Delhi Junction",
+      "stnCity": "Delhi"
+    },
+    {
+      "stnCode": "ANVT",
+      "stnName": "Anand Vihar Terminal",
+      "stnCity": "Delhi"
+    },
+    {
+      "stnCode": "NZM",
+      "stnName": "Hazrat Nizamuddin",
+      "stnCity": "Delhi"
+    },
+    {
+      "stnCode": "PNBE",
+      "stnName": "Patna Junction",
+      "stnCity": "Patna"
+    },
+    {
+      "stnCode": "GAYA",
+      "stnName": "Gaya Junction",
+      "stnCity": "Gaya"
+    },
+    {
+      "stnCode": "MFP",
+      "stnName": "Muzaffarpur Junction",
+      "stnCity": "Muzaffarpur"
+    },
+    {
+      "stnCode": "CPR",
+      "stnName": "Chhapra Junction",
+      "stnCity": "Chhapra"
+    },
+    {
+      "stnCode": "BJU",
+      "stnName": "Barauni Junction",
+      "stnCity": "Barauni"
+    },
+    {
+      "stnCode": "AGC",
+      "stnName": "Agra Cantt",
+      "stnCity": "Agra"
+    },
+    {
+      "stnCode": "AF",
+      "stnName": "Agra Fort",
+      "stnCity": "Agra"
+    },
+    {
+      "stnCode": "ALJN",
+      "stnName": "Aligarh Junction",
+      "stnCity": "Aligarh"
+    },
+    {
+      "stnCode": "AII",
+      "stnName": "Ajmer Junction",
+      "stnCity": "Ajmer"
+    },
+    {
+      "stnCode": "JP",
+      "stnName": "Jaipur Junction",
+      "stnCity": "Jaipur"
+    },
+    {
+      "stnCode": "KOTA",
+      "stnName": "Kota Junction",
+      "stnCity": "Kota"
+    },
+    {
+      "stnCode": "JU",
+      "stnName": "Jodhpur Junction",
+      "stnCity": "Jodhpur"
+    },
+    {
+      "stnCode": "BKN",
+      "stnName": "Bikaner Junction",
+      "stnCity": "Bikaner"
+    },
+    {
+      "stnCode": "ASR",
+      "stnName": "Amritsar Junction",
+      "stnCity": "Amritsar"
+    },
+    {
+      "stnCode": "LDH",
+      "stnName": "Ludhiana Junction",
+      "stnCity": "Ludhiana"
+    },
+    {
+      "stnCode": "JUC",
+      "stnName": "Jalandhar City",
+      "stnCity": "Jalandhar"
+    },
+    {
+      "stnCode": "UMB",
+      "stnName": "Ambala Cantt Junction",
+      "stnCity": "Ambala"
+    },
+    {
+      "stnCode": "BCT",
+      "stnName": "Mumbai Central",
+      "stnCity": "Mumbai"
+    },
+    {
+      "stnCode": "CSMT",
+      "stnName": "Chhatrapati Shivaji Maharaj Terminus",
+      "stnCity": "Mumbai"
+    },
+    {
+      "stnCode": "LTT",
+      "stnName": "Lokmanya Tilak Terminus",
+      "stnCity": "Mumbai"
+    },
+    {
+      "stnCode": "BDTS",
+      "stnName": "Bandra Terminus",
+      "stnCity": "Mumbai"
+    },
+    {
+      "stnCode": "DR",
+      "stnName": "Dadar Central",
+      "stnCity": "Mumbai"
+    },
+    {
+      "stnCode": "ADI",
+      "stnName": "Ahmedabad Junction",
+      "stnCity": "Ahmedabad"
+    },
+    {
+      "stnCode": "ST",
+      "stnName": "Surat",
+      "stnCity": "Surat"
+    },
+    {
+      "stnCode": "BRC",
+      "stnName": "Vadodara Junction",
+      "stnCity": "Vadodara"
+    },
+    {
+      "stnCode": "RJT",
+      "stnName": "Rajkot Junction",
+      "stnCity": "Rajkot"
+    },
+    {
+      "stnCode": "BPL",
+      "stnName": "Bhopal Junction",
+      "stnCity": "Bhopal"
+    },
+    {
+      "stnCode": "INDB",
+      "stnName": "Indore Junction",
+      "stnCity": "Indore"
+    },
+    {
+      "stnCode": "JBP",
+      "stnName": "Jabalpur Junction",
+      "stnCity": "Jabalpur"
+    },
+    {
+      "stnCode": "NGP",
+      "stnName": "Nagpur Junction",
+      "stnCity": "Nagpur"
+    },
+    {
+      "stnCode": "HWH",
+      "stnName": "Howrah Junction",
+      "stnCity": "Howrah"
+    },
+    {
+      "stnCode": "SDAH",
+      "stnName": "Sealdah",
+      "stnCity": "Kolkata"
+    },
+    {
+      "stnCode": "ASN",
+      "stnName": "Asansol Junction",
+      "stnCity": "Asansol"
+    },
+    {
+      "stnCode": "BBS",
+      "stnName": "Bhubaneswar",
+      "stnCity": "Bhubaneswar"
+    },
+    {
+      "stnCode": "PURI",
+      "stnName": "Puri",
+      "stnCity": "Puri"
+    },
+    {
+      "stnCode": "RNC",
+      "stnName": "Ranchi Junction",
+      "stnCity": "Ranchi"
+    },
+    {
+      "stnCode": "TATA",
+      "stnName": "Tatanagar Junction",
+      "stnCity": "Jamshedpur"
+    },
+    {
+      "stnCode": "MAS",
+      "stnName": "Chennai Central",
+      "stnCity": "Chennai"
+    },
+    {
+      "stnCode": "SBC",
+      "stnName": "KSR Bengaluru City Junction",
+      "stnCity": "Bengaluru"
+    },
+    {
+      "stnCode": "HYB",
+      "stnName": "Hyderabad Deccan",
+      "stnCity": "Hyderabad"
+    },
+    {
+      "stnCode": "SC",
+      "stnName": "Secunderabad Junction",
+      "stnCity": "Hyderabad"
+    },
+    {
+      "stnCode": "VSKP",
+      "stnName": "Visakhapatnam Junction",
+      "stnCity": "Visakhapatnam"
+    },
+    {
+      "stnCode": "TPTY",
+      "stnName": "Tirupati",
+      "stnCity": "Tirupati"
+    },
+    {
+      "stnCode": "MYS",
+      "stnName": "Mysuru Junction",
+      "stnCity": "Mysuru"
+    },
+    {
+      "stnCode": "ERS",
+      "stnName": "Ernakulam Junction",
+      "stnCity": "Kochi"
+    },
+    {
+      "stnCode": "TVC",
+      "stnName": "Thiruvananthapuram Central",
+      "stnCity": "Thiruvananthapuram"
+    },
+    {
+      "stnCode": "JAT",
+      "stnName": "Jammu Tawi",
+      "stnCity": "Jammu"
+    },
+    {
+      "stnCode": "SVDK",
+      "stnName": "Shri Mata Vaishno Devi Katra",
+      "stnCity": "Katra"
+    },
+    {
+      "stnCode": "AGTL",
+      "stnName": "Agartala",
+      "stnCity": "Agartala"
+    }
+  ]
+}
