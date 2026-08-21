@@ -1,248 +1,132 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
+<meta name="description" content="AINEX Railway - PNR Status, Live Train Status, Train Search, Seat Availability, Fare and Railway Information.">
+<meta name="theme-color" content="#0759d9">
 
-  <meta
-    name="description"
-    content="AINEX Railway - PNR Status, Live Train Status, Train Search, Seat Availability, Fare and Railway Information."
-  >
+<title>AINEX Railway | PNR & Live Train Status</title>
 
-  <meta
-    name="theme-color"
-    content="#0759d9"
-  >
-
-  <title>AINEX Railway | PNR & Live Train Status</title>
-
-  <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<!-- ================= HEADER ================= -->
-
 <header class="site-header">
-
   <div class="container header-inner">
-
     <div class="brand">
-
-      <div class="brand-icon">
-        🚆
-      </div>
-
+      <div class="brand-icon">🚆</div>
       <div>
         <h1>AINEX Railway</h1>
         <p>Railway Information Portal</p>
       </div>
-
     </div>
-
-    <div class="header-badge">
-      ● LIVE
-    </div>
-
+    <div class="header-badge">● LIVE</div>
   </div>
-
 </header>
 
-
-<!-- ================= HERO ================= -->
-
 <section class="hero">
-
   <div class="container">
-
     <div class="hero-content">
-
-      <span class="hero-label">
-        🇮🇳 INDIAN RAILWAY
-      </span>
-
-      <h2>
-        Railway information
-        <span>ek hi jagah</span>
-      </h2>
-
+      <span class="hero-label">🇮🇳 INDIAN RAILWAY</span>
+      <h2>Railway information <span>ek hi jagah</span></h2>
       <p>
         PNR status, live train location, train search,
         seat availability aur fare check karein.
       </p>
-
     </div>
-
   </div>
-
 </section>
-
 
 <main class="container main-content">
 
-
-<!-- =====================================================
-     QUICK SERVICES
-===================================================== -->
-
 <section class="quick-services">
-
   <a href="#pnr" class="quick-card">
-    <span>🎫</span>
-    <strong>PNR</strong>
-    <small>Check Status</small>
+    <span>🎫</span><strong>PNR</strong><small>Check Status</small>
   </a>
-
   <a href="#live" class="quick-card">
-    <span>📍</span>
-    <strong>Live Train</strong>
-    <small>Track Train</small>
+    <span>📍</span><strong>Live Train</strong><small>Track Train</small>
   </a>
-
   <a href="#search" class="quick-card">
-    <span>🔎</span>
-    <strong>Train Search</strong>
-    <small>Find Trains</small>
+    <span>🔎</span><strong>Train Search</strong><small>Find Trains</small>
   </a>
-
   <a href="#seats" class="quick-card">
-    <span>💺</span>
-    <strong>Availability</strong>
-    <small>Check Seats</small>
+    <span>💺</span><strong>Availability</strong><small>Check Seats</small>
   </a>
-
 </section>
 
+<!-- PNR -->
 
-<!-- =====================================================
-     PNR
-===================================================== -->
-
-<section
-  class="service-card"
-  id="pnr"
->
+<section class="service-card" id="pnr">
 
   <div class="service-header">
-
-    <div class="service-icon blue">
-      🎫
-    </div>
-
+    <div class="service-icon blue">🎫</div>
     <div>
       <h2>PNR Status</h2>
-
-      <p>
-        Apna 10 digit PNR number enter karein
-      </p>
+      <p>Apna 10 digit PNR number enter karein</p>
     </div>
-
   </div>
-
 
   <form id="pnrForm">
 
-    <label for="pnr">
-      PNR Number
-    </label>
+    <label for="pnrNumber">PNR Number</label>
 
-    <div class="input-row">
+    <input
+      id="pnrNumber"
+      type="text"
+      inputmode="numeric"
+      maxlength="10"
+      autocomplete="off"
+      placeholder="Enter 10 digit PNR"
+    >
 
-      <input
-        id="pnr"
-        type="text"
-        inputmode="numeric"
-        maxlength="10"
-        autocomplete="off"
-        placeholder="Enter 10 digit PNR"
-      >
-
-      <button
-        id="checkBtn"
-        type="submit"
-      >
-        CHECK
-      </button>
-
-    </div>
+    <button
+      id="checkPNR"
+      type="submit"
+      class="primary-btn"
+    >
+      🔎 CHECK PNR STATUS
+    </button>
 
   </form>
 
-
-  <div id="result"></div>
+  <div id="pnrResult"></div>
 
 </section>
 
+<!-- LIVE TRAIN -->
 
-<!-- =====================================================
-     LIVE TRAIN
-===================================================== -->
-
-<section
-  class="service-card"
-  id="live"
->
+<section class="service-card" id="live">
 
   <div class="service-header">
-
-    <div class="service-icon green">
-      📍
-    </div>
-
+    <div class="service-icon green">📍</div>
     <div>
       <h2>Live Train Status</h2>
-
-      <p>
-        Train abhi kahan pahuchi hai dekhein
-      </p>
+      <p>Train abhi kahan pahuchi hai dekhein</p>
     </div>
-
   </div>
-
 
   <form id="liveForm">
 
-    <div class="form-grid">
+    <label for="liveTrainNumber">Train Number</label>
 
-      <div>
+    <input
+      id="liveTrainNumber"
+      type="text"
+      inputmode="numeric"
+      maxlength="5"
+      placeholder="Example: 19037"
+    >
 
-        <label for="liveTrain">
-          Train Number
-        </label>
+    <label for="liveTrainDate">Journey Date</label>
 
-        <input
-          id="liveTrain"
-          type="text"
-          inputmode="numeric"
-          maxlength="5"
-          placeholder="Example: 19037"
-        >
-
-      </div>
-
-
-      <div>
-
-        <label for="liveDate">
-          Journey Date
-        </label>
-
-        <input
-          id="liveDate"
-          type="date"
-        >
-
-      </div>
-
-    </div>
-
+    <input id="liveTrainDate" type="date">
 
     <button
       type="submit"
+      id="checkLiveTrain"
       class="primary-btn"
     >
       📍 CHECK LIVE STATUS
@@ -250,147 +134,99 @@
 
   </form>
 
-
-  <div id="liveResult"></div>
+  <div id="liveTrainResult"></div>
 
 </section>
 
-
-<!-- =====================================================
-     TRAIN INFORMATION
-===================================================== -->
+<!-- TRAIN INFORMATION -->
 
 <section class="service-card">
 
   <div class="service-header">
-
-    <div class="service-icon purple">
-      🚆
-    </div>
-
+    <div class="service-icon purple">🚆</div>
     <div>
       <h2>Train Information</h2>
-
-      <p>
-        Train ka route, timing aur running days
-      </p>
+      <p>Train ka route, timing aur running days</p>
     </div>
-
   </div>
-
 
   <form id="trainInfoForm">
 
-    <label for="trainInfoNo">
-      Train Number
-    </label>
+    <label for="trainInfoNumber">Train Number</label>
 
-    <div class="input-row">
+    <input
+      id="trainInfoNumber"
+      type="text"
+      inputmode="numeric"
+      maxlength="5"
+      placeholder="Example: 12555"
+    >
 
-      <input
-        id="trainInfoNo"
-        type="text"
-        inputmode="numeric"
-        maxlength="5"
-        placeholder="Example: 12555"
-      >
-
-      <button type="submit">
-        SEARCH
-      </button>
-
-    </div>
+    <button
+      type="submit"
+      id="checkTrainInfo"
+      class="primary-btn"
+    >
+      🚆 GET TRAIN INFORMATION
+    </button>
 
   </form>
-
 
   <div id="trainInfoResult"></div>
 
 </section>
 
+<!-- TRAINS BETWEEN STATIONS -->
 
-<!-- =====================================================
-     TRAIN SEARCH
-===================================================== -->
-
-<section
-  class="service-card"
-  id="search"
->
+<section class="service-card" id="search">
 
   <div class="service-header">
-
-    <div class="service-icon orange">
-      🔎
-    </div>
-
+    <div class="service-icon orange">🔎</div>
     <div>
       <h2>Trains Between Stations</h2>
-
-      <p>
-        From aur To station select karein
-      </p>
+      <p>From aur To station select karein</p>
     </div>
-
   </div>
-
 
   <form id="searchForm">
 
     <div class="station-field">
 
-      <label for="fromStation">
-        From Station
-      </label>
+      <label for="fromStation">From Station</label>
 
       <input
         id="fromStation"
+        class="station-input"
+        data-station="true"
         type="text"
         autocomplete="off"
         placeholder="Station name ya code"
       >
 
-      <div
-        id="fromSuggestions"
-        class="suggestions"
-      ></div>
-
     </div>
-
 
     <div class="station-field">
 
-      <label for="toStation">
-        To Station
-      </label>
+      <label for="toStation">To Station</label>
 
       <input
         id="toStation"
+        class="station-input"
+        data-station="true"
         type="text"
         autocomplete="off"
         placeholder="Station name ya code"
       >
 
-      <div
-        id="toSuggestions"
-        class="suggestions"
-      ></div>
-
     </div>
 
+    <label for="searchDate">Journey Date</label>
 
-    <label for="searchDate">
-      Journey Date
-    </label>
-
-    <input
-      id="searchDate"
-      type="date"
-    >
-
+    <input id="searchDate" type="date">
 
     <button
       type="submit"
+      id="searchTrains"
       class="primary-btn"
     >
       🚆 SEARCH TRAINS
@@ -398,263 +234,142 @@
 
   </form>
 
-
   <div id="searchResult"></div>
 
 </section>
 
-
-<!-- =====================================================
-     LIVE STATION
-===================================================== -->
+<!-- LIVE STATION -->
 
 <section class="service-card">
 
   <div class="service-header">
-
-    <div class="service-icon red">
-      🚉
-    </div>
-
+    <div class="service-icon red">🚉</div>
     <div>
       <h2>Live Station</h2>
-
-      <p>
-        Station par aane wali trains dekhein
-      </p>
+      <p>Station par aane wali trains dekhein</p>
     </div>
-
   </div>
-
 
   <form id="stationForm">
 
     <div class="station-field">
 
-      <label for="stationCode">
-        Station
-      </label>
+      <label for="liveStation">Station</label>
 
       <input
-        id="stationCode"
+        id="liveStation"
+        class="station-input"
+        data-station="true"
         type="text"
         autocomplete="off"
         placeholder="Station name ya code"
       >
 
-      <div
-        id="stationSuggestions"
-        class="suggestions"
-      ></div>
-
     </div>
 
+    <label for="liveStationHours">Time Window</label>
 
-    <label for="stationHours">
-      Time Window
-    </label>
-
-    <select id="stationHours">
-
-      <option value="2">
-        Next 2 Hours
-      </option>
-
-      <option value="4">
-        Next 4 Hours
-      </option>
-
-      <option value="8">
-        Next 8 Hours
-      </option>
-
+    <select id="liveStationHours">
+      <option value="2">Next 2 Hours</option>
+      <option value="4">Next 4 Hours</option>
+      <option value="8">Next 8 Hours</option>
     </select>
-
 
     <button
       type="submit"
+      id="checkLiveStation"
       class="primary-btn"
     >
-      🚉 CHECK STATION
+      🚉 CHECK LIVE STATION
     </button>
 
   </form>
 
-
-  <div id="stationResult"></div>
+  <div id="liveStationResult"></div>
 
 </section>
 
+<!-- SEAT AVAILABILITY -->
 
-<!-- =====================================================
-     SEAT AVAILABILITY
-===================================================== -->
-
-<section
-  class="service-card"
-  id="seats"
->
+<section class="service-card" id="seats">
 
   <div class="service-header">
-
-    <div class="service-icon teal">
-      💺
-    </div>
-
+    <div class="service-icon teal">💺</div>
     <div>
       <h2>Seat Availability</h2>
-
-      <p>
-        Train mein seat availability check karein
-      </p>
+      <p>Train mein seat availability check karein</p>
     </div>
-
   </div>
-
 
   <form id="seatForm">
 
-    <label for="seatTrain">
-      Train Number
-    </label>
+    <label for="seatTrainNumber">Train Number</label>
 
     <input
-      id="seatTrain"
+      id="seatTrainNumber"
       type="text"
       inputmode="numeric"
       maxlength="5"
       placeholder="Train number"
     >
 
-
     <div class="station-field">
 
-      <label for="seatFrom">
-        From
-      </label>
+      <label for="seatFromStation">From</label>
 
       <input
-        id="seatFrom"
+        id="seatFromStation"
+        class="station-input"
+        data-station="true"
         type="text"
         autocomplete="off"
         placeholder="From station"
       >
 
-      <div
-        id="seatFromSuggestions"
-        class="suggestions"
-      ></div>
-
     </div>
-
 
     <div class="station-field">
 
-      <label for="seatTo">
-        To
-      </label>
+      <label for="seatToStation">To</label>
 
       <input
-        id="seatTo"
+        id="seatToStation"
+        class="station-input"
+        data-station="true"
         type="text"
         autocomplete="off"
         placeholder="To station"
       >
 
-      <div
-        id="seatToSuggestions"
-        class="suggestions"
-      ></div>
-
     </div>
 
+    <label for="seatDate">Journey Date</label>
+    <input id="seatDate" type="date">
 
-    <div class="form-grid">
+    <label for="seatClass">Class</label>
 
-      <div>
-
-        <label for="seatDate">
-          Journey Date
-        </label>
-
-        <input
-          id="seatDate"
-          type="date"
-        >
-
-      </div>
-
-
-      <div>
-
-        <label for="seatClass">
-          Class
-        </label>
-
-        <select id="seatClass">
-
-          <option value="">
-            Select Class
-          </option>
-
-          <option value="SL">
-            Sleeper
-          </option>
-
-          <option value="3A">
-            3A
-          </option>
-
-          <option value="2A">
-            2A
-          </option>
-
-          <option value="1A">
-            1A
-          </option>
-
-          <option value="CC">
-            Chair Car
-          </option>
-
-          <option value="2S">
-            Second Sitting
-          </option>
-
-        </select>
-
-      </div>
-
-    </div>
-
-
-    <label for="seatQuota">
-      Quota
-    </label>
-
-    <select id="seatQuota">
-
-      <option value="">
-        Select Quota
-      </option>
-
-      <option value="GN">
-        General
-      </option>
-
-      <option value="TQ">
-        Tatkal
-      </option>
-
-      <option value="LD">
-        Ladies
-      </option>
-
+    <select id="seatClass">
+      <option value="">Select Class</option>
+      <option value="SL">Sleeper</option>
+      <option value="3A">3A</option>
+      <option value="2A">2A</option>
+      <option value="1A">1A</option>
+      <option value="CC">Chair Car</option>
+      <option value="2S">Second Sitting</option>
     </select>
 
+    <label for="seatQuota">Quota</label>
+
+    <select id="seatQuota">
+      <option value="">Select Quota</option>
+      <option value="GN">General</option>
+      <option value="TQ">Tatkal</option>
+      <option value="LD">Ladies</option>
+    </select>
 
     <button
       type="submit"
+      id="checkSeats"
       class="primary-btn"
     >
       💺 CHECK AVAILABILITY
@@ -662,178 +377,91 @@
 
   </form>
 
-
   <div id="seatResult"></div>
 
 </section>
 
-
-<!-- =====================================================
-     FARE
-===================================================== -->
+<!-- FARE -->
 
 <section class="service-card">
 
   <div class="service-header">
-
-    <div class="service-icon yellow">
-      💰
-    </div>
-
+    <div class="service-icon yellow">💰</div>
     <div>
       <h2>Fare Enquiry</h2>
-
-      <p>
-        Journey ka estimated fare check karein
-      </p>
+      <p>Journey ka fare check karein</p>
     </div>
-
   </div>
-
 
   <form id="fareForm">
 
-    <label for="fareTrain">
-      Train Number
-    </label>
+    <label for="fareTrainNumber">Train Number</label>
 
     <input
-      id="fareTrain"
+      id="fareTrainNumber"
       type="text"
       inputmode="numeric"
       maxlength="5"
       placeholder="Train number"
     >
 
-
     <div class="station-field">
 
-      <label for="fareFrom">
-        From
-      </label>
+      <label for="fareFromStation">From</label>
 
       <input
-        id="fareFrom"
+        id="fareFromStation"
+        class="station-input"
+        data-station="true"
         type="text"
         autocomplete="off"
         placeholder="From station"
       >
 
-      <div
-        id="fareFromSuggestions"
-        class="suggestions"
-      ></div>
-
     </div>
-
 
     <div class="station-field">
 
-      <label for="fareTo">
-        To
-      </label>
+      <label for="fareToStation">To</label>
 
       <input
-        id="fareTo"
+        id="fareToStation"
+        class="station-input"
+        data-station="true"
         type="text"
         autocomplete="off"
         placeholder="To station"
       >
 
-      <div
-        id="fareToSuggestions"
-        class="suggestions"
-      ></div>
-
     </div>
 
+    <label for="fareDate">Journey Date</label>
+    <input id="fareDate" type="date">
 
-    <label for="fareDate">
-      Journey Date
-    </label>
+    <label for="fareClass">Class</label>
 
-    <input
-      id="fareDate"
-      type="date"
-    >
+    <select id="fareClass">
+      <option value="">Select Class</option>
+      <option value="SL">Sleeper</option>
+      <option value="3A">3A</option>
+      <option value="2A">2A</option>
+      <option value="1A">1A</option>
+      <option value="CC">Chair Car</option>
+      <option value="2S">Second Sitting</option>
+    </select>
 
+    <label for="fareQuota">Quota</label>
 
-    <div class="form-grid">
-
-      <div>
-
-        <label for="fareClass">
-          Class
-        </label>
-
-        <select id="fareClass">
-
-          <option value="">
-            Select Class
-          </option>
-
-          <option value="SL">
-            Sleeper
-          </option>
-
-          <option value="3A">
-            3A
-          </option>
-
-          <option value="2A">
-            2A
-          </option>
-
-          <option value="1A">
-            1A
-          </option>
-
-          <option value="CC">
-            Chair Car
-          </option>
-
-          <option value="2S">
-            Second Sitting
-          </option>
-
-        </select>
-
-      </div>
-
-
-      <div>
-
-        <label for="fareQuota">
-          Quota
-        </label>
-
-        <select id="fareQuota">
-
-          <option value="">
-            Select Quota
-          </option>
-
-          <option value="GN">
-            General
-          </option>
-
-          <option value="TQ">
-            Tatkal
-          </option>
-
-          <option value="LD">
-            Ladies
-          </option>
-
-        </select>
-
-      </div>
-
-    </div>
-
+    <select id="fareQuota">
+      <option value="">Select Quota</option>
+      <option value="GN">General</option>
+      <option value="TQ">Tatkal</option>
+      <option value="LD">Ladies</option>
+    </select>
 
     <button
       type="submit"
+      id="checkFare"
       class="primary-btn"
     >
       💰 CHECK FARE
@@ -841,154 +469,91 @@
 
   </form>
 
-
   <div id="fareResult"></div>
 
 </section>
 
-
-<!-- =====================================================
-     TRAIN HISTORY
-===================================================== -->
+<!-- HISTORY -->
 
 <section class="service-card">
 
   <div class="service-header">
-
-    <div class="service-icon dark">
-      📜
-    </div>
-
+    <div class="service-icon dark">📜</div>
     <div>
       <h2>Train History</h2>
-
-      <p>
-        Train ka historical running data
-      </p>
+      <p>Train ka historical running data</p>
     </div>
-
   </div>
-
 
   <form id="historyForm">
 
-    <div class="form-grid">
+    <label for="historyTrainNumber">Train Number</label>
 
-      <div>
+    <input
+      id="historyTrainNumber"
+      type="text"
+      inputmode="numeric"
+      maxlength="5"
+      placeholder="Train number"
+    >
 
-        <label for="historyTrain">
-          Train Number
-        </label>
+    <label for="historyDate">Journey Date</label>
 
-        <input
-          id="historyTrain"
-          type="text"
-          inputmode="numeric"
-          maxlength="5"
-          placeholder="Train number"
-        >
-
-      </div>
-
-
-      <div>
-
-        <label for="historyDate">
-          Date
-        </label>
-
-        <input
-          id="historyDate"
-          type="date"
-        >
-
-      </div>
-
-    </div>
-
+    <input id="historyDate" type="date">
 
     <button
       type="submit"
+      id="checkHistory"
       class="primary-btn"
     >
-      📜 CHECK HISTORY
+      📜 CHECK TRAIN HISTORY
     </button>
 
   </form>
-
 
   <div id="historyResult"></div>
 
 </section>
 
-
-<!-- =====================================================
-     CANCELLED TRAINS
-===================================================== -->
+<!-- CANCELLED -->
 
 <section class="service-card">
 
   <div class="service-header">
-
-    <div class="service-icon gray">
-      ❌
-    </div>
-
+    <div class="service-icon gray">❌</div>
     <div>
       <h2>Cancelled Trains</h2>
-
-      <p>
-        Cancelled trains ki list check karein
-      </p>
+      <p>Cancelled trains ki list check karein</p>
     </div>
-
   </div>
 
-
   <button
-    id="cancelledBtn"
+    id="checkCancelled"
     type="button"
     class="danger-btn"
   >
     ❌ CHECK CANCELLED TRAINS
   </button>
 
-
   <div id="cancelledResult"></div>
 
 </section>
 
-
-<!-- =====================================================
-     NOTICE
-===================================================== -->
-
 <section class="notice-card">
 
-  <div class="notice-icon">
-    🔒
-  </div>
+  <div class="notice-icon">🔒</div>
 
   <div>
-
-    <strong>
-      Secure Railway Information
-    </strong>
-
+    <strong>Secure Railway Information</strong>
     <p>
       Railway data connected railway service ke
       through fetch kiya jata hai.
     </p>
-
   </div>
 
 </section>
 
-
 </main>
-
-
-<!-- ================= FOOTER ================= -->
 
 <footer class="site-footer">
 
@@ -1010,7 +575,6 @@
   </div>
 
 </footer>
-
 
 <script src="script.js"></script>
 
