@@ -1,503 +1,627 @@
-// api/railway.js
+import {
+  configure,
+  checkPNRStatus,
+  getTrainInfo,
+  trackTrain,
+  getTrainHistory,
+  liveAtStation,
+  searchTrainBetweenStations,
+  getAvailability,
+  fareLookup,
+  cancelList
+} from "railkit";
 
-const API_KEY =
-  process.env.IRCTC_API_KEY ||
-  "irctc_f376f7ad6c15ef809c464eb0337e6f6020da46de9bdaffce";
-
-const BASE =
-  "https://indianrailapi.com/api/v2";
-
-function json(res, status, data) {
-  res.status(status).json(data);
+function json(data, status = 200) {
+  return Response.json(data, {
+    status,
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store"
+    }
+  });
 }
 
 function clean(v) {
-  return String(v || "").trim();
+  return String(v || "").trim().toUpperCase();
 }
 
-function dateYYYYMMDD(value) {
-  const d = clean(value);
+function dateToRailkit(v) {
+  if (!v) return "";
 
-  if (/^\d{8}$/.test(d)) return d;
+  const s = String(v);
 
-  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
-    return d.replaceAll("-", "");
+  if (/^\d{2}-\d{2}-\d{4}$/.test(s)) return s;
+
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  return m
+    ? `${m[3]}-${m[2]}-${m[1]}`
+    : s;
+}
+
+function stationCode(v) {
+  return clean(v);
+}
+
+function daysText(days = "") {
+  const names = [
+    "Sun",
+    "Mon",
+    "Tue",
+    "Wed",
+    "Thu",
+    "Fri",
+    "Sat"
+  ];
+
+  const s = String(days);
+
+  if (!/^[01]{7}$/.test(s)) {
+    return s || "-";
   }
 
-  return "";
+  return (
+    names
+      .filter((_, i) => s[i] === "1")
+      .join(", ") ||
+    "No running day"
+  );
 }
 
-async function callAPI(path) {
-  const url =
-    `${BASE}${path}` +
-    `${path.includes("?") ? "&" : "?"}apikey=${encodeURIComponent(API_KEY)}`;
-
-  const response = await fetch(url, {
-    method: "GET",
-    headers: {
-      Accept: "application/json"
-    }
-  });
-
-  const text = await response.text();
-
-  let data;
+export default async function handler(request) {
 
   try {
-    data = JSON.parse(text);
-  } catch {
-    data = {
-      Status: "ERROR",
-      Message: text
-    };
-  }
 
-  if (!response.ok) {
-    const error = new Error(
-      data?.Message ||
-      data?.message ||
-      `API Error ${response.status}`
+    const url = new URL(request.url);
+
+    const action = clean(
+      url.searchParams.get("action")
     );
 
-    error.status = response.status;
-    error.data = data;
+    const apiKey =
+      process.env.RAILKIT_API_KEY;
 
-    throw error;
-  }
-
-  return data;
-}
-
-export default async function handler(req, res) {
-
-  try {
-
-    const q = req.query || {};
-
-    const action = clean(q.action).toLowerCase();
-
-    /* =========================
-       PNR STATUS
-    ========================= */
-
-    if (action === "pnr") {
-
-      const pnr = clean(
-        q.pnr ||
-        q.pnrNumber
-      );
-
-      if (!/^\d{10}$/.test(pnr)) {
-        return json(res, 400, {
-          success: false,
-          error: "Please enter valid 10 digit PNR."
-        });
-      }
-
-      const data = await callAPI(
-        `/PNRCheck/apikey/${encodeURIComponent(API_KEY)}/PNRNumber/${pnr}/Route/1/`
-      );
-
-      return json(res, 200, {
-        success: true,
-        type: "pnr",
-        data
-      });
+    if (!apiKey) {
+      return json({
+        success: false,
+        message:
+          "RAILKIT_API_KEY missing. Vercel Environment Variables me key add karo."
+      }, 500);
     }
 
+    configure(apiKey);
 
     /* =========================
-       LIVE TRAIN STATUS
+       PNR
     ========================= */
 
-    if (action === "live") {
+    if (action === "PNR") {
 
-      const train = clean(
-        q.train ||
-        q.trainNumber
-      );
+      const pnr = String(
+        url.searchParams.get("pnr") || ""
+      ).replace(/\D/g, "");
 
-      const date = dateYYYYMMDD(
-        q.date ||
-        q.journeyDate
-      );
-
-      if (!/^\d{5}$/.test(train)) {
-        return json(res, 400, {
+      if (!/^\d{10}$/.test(pnr)) {
+        return json({
           success: false,
-          error: "Valid 5 digit train number required."
-        });
+          message:
+            "Please enter valid 10 digit PNR."
+        }, 400);
+      }
+
+      const result =
+        await checkPNRStatus(pnr);
+
+      return json(result);
+    }
+
+    /* =========================
+       TRAIN INFO
+    ========================= */
+
+    if (action === "TRAIN") {
+
+      const trainNo = clean(
+        url.searchParams.get("trainNo")
+      );
+
+      if (!/^\d{5}$/.test(trainNo)) {
+        return json({
+          success: false,
+          message:
+            "5 digit train number enter karo."
+        }, 400);
+      }
+
+      const result =
+        await getTrainInfo(trainNo);
+
+      if (
+        result?.success &&
+        result?.data?.trainInfo
+      ) {
+
+        const t =
+          result.data.trainInfo;
+
+        result.display = {
+          trainNo:
+            t.train_no || trainNo,
+
+          trainName:
+            t.train_name || "-",
+
+          from:
+            t.from_stn_name || "-",
+
+          fromCode:
+            t.from_stn_code || "-",
+
+          to:
+            t.to_stn_name || "-",
+
+          toCode:
+            t.to_stn_code || "-",
+
+          departure:
+            t.from_time || "-",
+
+          arrival:
+            t.to_time || "-",
+
+          travelTime:
+            t.travel_time || "-",
+
+          runningDays:
+            daysText(t.running_days)
+        };
+      }
+
+      return json(result);
+    }
+
+    /* =========================
+       LIVE TRAIN
+    ========================= */
+
+    if (action === "LIVE") {
+
+      const trainNo = clean(
+        url.searchParams.get("trainNo")
+      );
+
+      const date =
+        dateToRailkit(
+          url.searchParams.get("date")
+        );
+
+      if (!/^\d{5}$/.test(trainNo)) {
+        return json({
+          success: false,
+          message:
+            "5 digit train number enter karo."
+        }, 400);
       }
 
       if (!date) {
-        return json(res, 400, {
+        return json({
           success: false,
-          error: "Journey date required."
-        });
+          message:
+            "Journey date required."
+        }, 400);
       }
 
-      const data = await callAPI(
-        `/livetrainstatus/apikey/${encodeURIComponent(API_KEY)}/trainnumber/${encodeURIComponent(train)}/date/${date}/`
+      return json(
+        await trackTrain(
+          trainNo,
+          date
+        )
       );
-
-      return json(res, 200, {
-        success: true,
-        type: "live",
-        data
-      });
     }
-
 
     /* =========================
-       TRAIN INFORMATION
+       HISTORY
     ========================= */
 
-    if (action === "train") {
+    if (action === "HISTORY") {
 
-      const train = clean(
-        q.train ||
-        q.trainNumber
+      const trainNo = clean(
+        url.searchParams.get("trainNo")
       );
 
-      if (!/^\d{5}$/.test(train)) {
-        return json(res, 400, {
+      const date =
+        dateToRailkit(
+          url.searchParams.get("date")
+        );
+
+      if (
+        !/^\d{5}$/.test(trainNo) ||
+        !date
+      ) {
+        return json({
           success: false,
-          error: "Valid 5 digit train number required."
-        });
+          message:
+            "Train number aur journey date check karo."
+        }, 400);
       }
 
-      const data = await callAPI(
-        `/TrainInformation/apikey/${encodeURIComponent(API_KEY)}/TrainNumber/${encodeURIComponent(train)}/`
+      return json(
+        await getTrainHistory(
+          trainNo,
+          date
+        )
       );
-
-      return json(res, 200, {
-        success: true,
-        type: "train",
-        data
-      });
     }
-
-
-    /* =========================
-       TRAINS BETWEEN STATIONS
-    ========================= */
-
-    if (action === "search") {
-
-      const from = clean(
-        q.from ||
-        q.fromStation
-      ).toUpperCase();
-
-      const to = clean(
-        q.to ||
-        q.toStation
-      ).toUpperCase();
-
-      if (!from || !to) {
-        return json(res, 400, {
-          success: false,
-          error: "From and To station required."
-        });
-      }
-
-      const data = await callAPI(
-        `/TrainBetweenStation/apikey/${encodeURIComponent(API_KEY)}/From/${encodeURIComponent(from)}/To/${encodeURIComponent(to)}`
-      );
-
-      return json(res, 200, {
-        success: true,
-        type: "search",
-        data
-      });
-    }
-
 
     /* =========================
        LIVE STATION
     ========================= */
 
-    if (action === "station") {
+    if (action === "STATION") {
 
-      const station = clean(
-        q.station ||
-        q.stationCode
-      ).toUpperCase();
+      const station =
+        stationCode(
+          url.searchParams.get("station")
+        );
 
-      const hours = clean(
-        q.hours ||
-        q.stationHours ||
-        "2"
+      const hours = Number(
+        url.searchParams.get("hours") || 2
       );
 
-      if (!station) {
-        return json(res, 400, {
+      if (!/^[A-Z]{1,5}$/.test(station)) {
+        return json({
           success: false,
-          error: "Station code required."
-        });
+          message:
+            "Valid station code enter karo."
+        }, 400);
       }
 
-      if (!["2", "4"].includes(hours)) {
-        return json(res, 400, {
+      if (![2, 4, 8].includes(hours)) {
+        return json({
           success: false,
-          error: "Time window must be 2 or 4 hours."
-        });
+          message:
+            "Hours 2, 4 ya 8 hona chahiye."
+        }, 400);
       }
 
-      const data = await callAPI(
-        `/LiveStation/apikey/${encodeURIComponent(API_KEY)}/StationCode/${encodeURIComponent(station)}/hours/${hours}/`
-      );
+      const result =
+        await liveAtStation(
+          station,
+          hours
+        );
 
-      return json(res, 200, {
-        success: true,
-        type: "station",
-        data
-      });
+      return json(result);
     }
 
+    /* =========================
+       SEARCH
+    ========================= */
+
+    if (action === "SEARCH") {
+
+      const from =
+        stationCode(
+          url.searchParams.get("from")
+        );
+
+      const to =
+        stationCode(
+          url.searchParams.get("to")
+        );
+
+      const date =
+        dateToRailkit(
+          url.searchParams.get("date")
+        );
+
+      if (!/^[A-Z]{1,5}$/.test(from)) {
+        return json({
+          success: false,
+          message:
+            "Invalid From station."
+        }, 400);
+      }
+
+      if (!/^[A-Z]{1,5}$/.test(to)) {
+        return json({
+          success: false,
+          message:
+            "Invalid To station."
+        }, 400);
+      }
+
+      if (from === to) {
+        return json({
+          success: false,
+          message:
+            "From aur To station same nahi ho sakte."
+        }, 400);
+      }
+
+      const result =
+        await searchTrainBetweenStations(
+          from,
+          to,
+          date || undefined
+        );
+
+      if (
+        result?.success &&
+        Array.isArray(result.data)
+      ) {
+
+        result.display =
+          result.data.map(t => ({
+            trainNo:
+              t.train_no || "-",
+
+            trainName:
+              t.train_name || "-",
+
+            from:
+              t.from_stn_name ||
+              t.source_stn_name ||
+              "-",
+
+            fromCode:
+              t.from_stn_code ||
+              t.source_stn_code ||
+              from,
+
+            to:
+              t.to_stn_name ||
+              t.dstn_stn_name ||
+              "-",
+
+            toCode:
+              t.to_stn_code ||
+              t.dstn_stn_code ||
+              to,
+
+            departure:
+              t.from_time || "-",
+
+            arrival:
+              t.to_time || "-",
+
+            travelTime:
+              t.travel_time || "-",
+
+            distance:
+              t.distance || "-",
+
+            runningDays:
+              daysText(
+                t.running_days
+              ),
+
+            halts:
+              t.halts ?? "-"
+          }));
+      }
+
+      return json(result);
+    }
 
     /* =========================
        SEAT AVAILABILITY
     ========================= */
 
-    if (action === "availability" || action === "seats") {
+    if (action === "SEATS") {
 
-      const train = clean(
-        q.train ||
-        q.trainNumber
+      const trainNo = clean(
+        url.searchParams.get("trainNo")
       );
 
-      const from = clean(
-        q.from ||
-        q.fromStation
-      ).toUpperCase();
+      const from =
+        stationCode(
+          url.searchParams.get("from")
+        );
 
-      const to = clean(
-        q.to ||
-        q.toStation
-      ).toUpperCase();
+      const to =
+        stationCode(
+          url.searchParams.get("to")
+        );
 
-      const date = dateYYYYMMDD(
-        q.date ||
-        q.journeyDate
+      const date =
+        dateToRailkit(
+          url.searchParams.get("date")
+        );
+
+      const coach = clean(
+        url.searchParams.get("coach")
       );
-
-      const classCode = clean(
-        q.class ||
-        q.classCode
-      ).toUpperCase();
 
       const quota = clean(
-        q.quota ||
-        "GN"
-      ).toUpperCase();
-
-      if (!/^\d{5}$/.test(train)) {
-        return json(res, 400, {
-          success: false,
-          error: "Valid train number required."
-        });
-      }
-
-      if (!from || !to) {
-        return json(res, 400, {
-          success: false,
-          error: "From and To station required."
-        });
-      }
-
-      if (!date) {
-        return json(res, 400, {
-          success: false,
-          error: "Journey date required."
-        });
-      }
-
-      if (!classCode) {
-        return json(res, 400, {
-          success: false,
-          error: "Class required."
-        });
-      }
-
-      const data = await callAPI(
-        `/SeatAvailability/apikey/${encodeURIComponent(API_KEY)}/TrainNumber/${encodeURIComponent(train)}/From/${encodeURIComponent(from)}/To/${encodeURIComponent(to)}/Date/${date}/Quota/${encodeURIComponent(quota)}/Class/${encodeURIComponent(classCode)}`
+        url.searchParams.get("quota")
       );
 
-      return json(res, 200, {
-        success: true,
-        type: "availability",
-        data
-      });
-    }
+      if (!/^\d{5}$/.test(trainNo)) {
+        return json({
+          success: false,
+          message:
+            "Invalid train number."
+        }, 400);
+      }
 
+      if (
+        !/^[A-Z]{1,5}$/.test(from) ||
+        !/^[A-Z]{1,5}$/.test(to)
+      ) {
+        return json({
+          success: false,
+          message:
+            "Invalid station."
+        }, 400);
+      }
+
+      if (
+        !date ||
+        !coach ||
+        !quota
+      ) {
+        return json({
+          success: false,
+          message:
+            "Date, class aur quota required."
+        }, 400);
+      }
+
+      const result =
+        await getAvailability(
+          trainNo,
+          from,
+          to,
+          date,
+          coach,
+          quota
+        );
+
+      if (
+        result?.success &&
+        result?.data
+      ) {
+
+        const d =
+          result.data;
+
+        result.display = {
+          trainNo:
+            d.train?.trainNo ||
+            trainNo,
+
+          trainName:
+            d.train?.trainName ||
+            "-",
+
+          from:
+            d.train?.fromStationName ||
+            from,
+
+          to:
+            d.train?.toStationName ||
+            to,
+
+          baseFare:
+            d.fare?.baseFare ?? "-",
+
+          totalFare:
+            d.fare?.totalFare ?? "-",
+
+          availability:
+            Array.isArray(
+              d.availability
+            )
+              ? d.availability.map(x => ({
+                  date:
+                    x.date || "-",
+
+                  status:
+                    x.availabilityText ||
+                    "-",
+
+                  prediction:
+                    x.prediction || "-"
+                }))
+              : []
+        };
+      }
+
+      return json(result);
+    }
 
     /* =========================
        FARE
     ========================= */
 
-    if (action === "fare") {
+    if (action === "FARE") {
 
-      const train = clean(
-        q.train ||
-        q.trainNumber
+      const trainNo = clean(
+        url.searchParams.get("trainNo")
       );
 
-      const from = clean(
-        q.from ||
-        q.fromStation
-      ).toUpperCase();
+      const from =
+        stationCode(
+          url.searchParams.get("from")
+        );
 
-      const to = clean(
-        q.to ||
-        q.toStation
-      ).toUpperCase();
+      const to =
+        stationCode(
+          url.searchParams.get("to")
+        );
 
-      const quota = clean(
-        q.quota ||
-        "GN"
-      ).toUpperCase();
+      const date =
+        dateToRailkit(
+          url.searchParams.get("date")
+        );
 
-      if (!/^\d{5}$/.test(train)) {
-        return json(res, 400, {
+      const travelClass =
+        clean(
+          url.searchParams.get(
+            "travelClass"
+          )
+        );
+
+      const quota =
+        clean(
+          url.searchParams.get("quota")
+        );
+
+      if (
+        !/^\d{5}$/.test(trainNo) ||
+        !/^[A-Z]{1,5}$/.test(from) ||
+        !/^[A-Z]{1,5}$/.test(to) ||
+        !date ||
+        !travelClass ||
+        !quota
+      ) {
+        return json({
           success: false,
-          error: "Valid train number required."
-        });
+          message:
+            "Fare enquiry details incomplete hain."
+        }, 400);
       }
 
-      if (!from || !to) {
-        return json(res, 400, {
-          success: false,
-          error: "From and To station required."
-        });
-      }
-
-      const data = await callAPI(
-        `/TrainFare/apikey/${encodeURIComponent(API_KEY)}/TrainNumber/${encodeURIComponent(train)}/From/${encodeURIComponent(from)}/To/${encodeURIComponent(to)}/Quota/${encodeURIComponent(quota)}`
+      return json(
+        await fareLookup(
+          trainNo,
+          from,
+          to,
+          date,
+          travelClass,
+          quota
+        )
       );
-
-      return json(res, 200, {
-        success: true,
-        type: "fare",
-        data
-      });
     }
 
-
     /* =========================
-       STATION SEARCH
+       CANCELLED
     ========================= */
 
-    if (action === "stationsearch") {
-
-      const text = clean(
-        q.text ||
-        q.search ||
-        q.station
+    if (action === "CANCELLED") {
+      return json(
+        await cancelList()
       );
-
-      if (!text) {
-        return json(res, 400, {
-          success: false,
-          error: "Station search text required."
-        });
-      }
-
-      const data = await callAPI(
-        `/StationCodeOrName/apikey/${encodeURIComponent(API_KEY)}/SearchText/${encodeURIComponent(text)}/`
-      );
-
-      return json(res, 200, {
-        success: true,
-        type: "stationsearch",
-        data
-      });
     }
 
-
-    /* =========================
-       TRAIN HISTORY
-    ========================= */
-
-    if (action === "history") {
-
-      const train = clean(
-        q.train ||
-        q.trainNumber
-      );
-
-      if (!/^\d{5}$/.test(train)) {
-        return json(res, 400, {
-          success: false,
-          error: "Valid train number required."
-        });
-      }
-
-      /*
-       * Indian Rail API me standard TrainSchedule
-       * route/schedule endpoint available hai.
-       */
-
-      const data = await callAPI(
-        `/TrainSchedule/apikey/${encodeURIComponent(API_KEY)}/TrainNumber/${encodeURIComponent(train)}/`
-      );
-
-      return json(res, 200, {
-        success: true,
-        type: "history",
-        data
-      });
-    }
-
-
-    /* =========================
-       CANCELLED TRAINS
-    ========================= */
-
-    if (action === "cancelled") {
-
-      return json(res, 200, {
-        success: false,
-        type: "cancelled",
-        error:
-          "Cancelled train endpoint is not available in the documented Indian Rail API collection."
-      });
-    }
-
-
-    /* =========================
-       INVALID ACTION
-    ========================= */
-
-    return json(res, 400, {
+    return json({
       success: false,
-      error: "Invalid action.",
-      availableActions: [
-        "pnr",
-        "live",
-        "train",
-        "search",
-        "station",
-        "availability",
-        "fare",
-        "stationsearch",
-        "history",
-        "cancelled"
-      ]
-    });
+      message:
+        "Invalid railway service."
+    }, 400);
 
   } catch (error) {
 
-    console.error("RAILWAY API ERROR:", error);
+    console.error(
+      "AINEX RAILWAY ERROR:",
+      error
+    );
 
-    return json(res, error.status || 500, {
+    return json({
       success: false,
-      error:
-        error?.data?.Message ||
-        error?.data?.message ||
-        error.message ||
-        "Railway API request failed.",
-      providerResponse: error.data || null
-    });
+      message:
+        error?.message ||
+        "Railway API request failed."
+    }, 500);
   }
 }
